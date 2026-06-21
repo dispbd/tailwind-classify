@@ -10,6 +10,14 @@ export default [
       parser: tsParser,
       ecmaVersion: 2022,
       sourceType: "module",
+      globals: {
+        // Node globals used by the Tailwind loader.
+        process: "readonly",
+        __dirname: "readonly",
+        module: "readonly",
+        require: "readonly",
+        console: "readonly",
+      },
     },
     plugins: {
       "@typescript-eslint": tsPlugin,
