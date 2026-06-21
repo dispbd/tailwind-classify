@@ -18,6 +18,12 @@ export interface FormatOptions extends GroupOptions {
   indentStep?: string;
   /** Put quotes on their own lines when wrapping. Default true. */
   quotesOnNewLine?: boolean;
+  /**
+   * Allow wrapping onto multiple lines. Default true. Set false for contexts
+   * that cannot contain raw newlines — e.g. ordinary JS string literals passed
+   * to clsx/cva — where only single-line regrouping is valid.
+   */
+  allowMultiline?: boolean;
 }
 
 export interface FormatContext {
@@ -42,6 +48,7 @@ export function formatClassValue(
 ): string | null {
   const printWidth = options.printWidth ?? 80;
   const indentStep = options.indentStep ?? "  ";
+  const allowMultiline = options.allowMultiline ?? true;
 
   if (value.trim() === "") return null;
 
@@ -53,13 +60,13 @@ export function formatClassValue(
   const singleLineWidth = context.valueColumn + singleLine.length + 1;
 
   const desired =
-    singleLineWidth <= printWidth
-      ? singleLine
-      : serializeMultiline(groups, {
+    allowMultiline && singleLineWidth > printWidth
+      ? serializeMultiline(groups, {
           baseIndent: context.baseIndent,
           indentStep,
           quotesOnNewLine: options.quotesOnNewLine,
-        });
+        })
+      : singleLine;
 
   return desired === value ? null : desired;
 }
