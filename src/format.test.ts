@@ -59,6 +59,56 @@ describe("formatClassValue — parent indentation", () => {
   });
 });
 
+describe("formatClassValue — group strategy", () => {
+  const input = "p-4 hover:bg-black bg-red-500";
+
+  it("category-variant wraps with one line per variant block", () => {
+    expect(
+      formatClassValue(input, { baseIndent: "", valueColumn: 12 }, {
+        maxClassesPerLine: 1,
+      }),
+    ).toBe("\n  p-4\n  bg-red-500\n  hover:bg-black\n");
+  });
+
+  it("category groups variants inline per category", () => {
+    expect(
+      formatClassValue(input, { baseIndent: "", valueColumn: 12 }, {
+        group: "category",
+        maxClassesPerLine: 1,
+      }),
+    ).toBe("\n  p-4\n  bg-red-500 hover:bg-black\n");
+  });
+
+  it("variant groups categories inline per variant chain", () => {
+    expect(
+      formatClassValue(input, { baseIndent: "", valueColumn: 12 }, {
+        group: "variant",
+        maxClassesPerLine: 1,
+      }),
+    ).toBe("\n  p-4 bg-red-500\n  hover:bg-black\n");
+  });
+});
+
+describe("formatClassValue — maxClassesPerLine", () => {
+  it("wraps when the class count exceeds the limit even within printWidth", () => {
+    // "flex p-4 text-sm" easily fits 80 columns, but >2 classes triggers a wrap.
+    expect(
+      formatClassValue("flex p-4 text-sm", { baseIndent: "", valueColumn: 12 }, {
+        group: "category",
+        maxClassesPerLine: 2,
+      }),
+    ).toBe("\n  flex\n  p-4\n  text-sm\n");
+  });
+
+  it("stays single line when within the limit", () => {
+    expect(
+      formatClassValue("text-sm flex", { baseIndent: "", valueColumn: 12 }, {
+        maxClassesPerLine: 2,
+      }),
+    ).toBe("flex text-sm");
+  });
+});
+
 describe("formatClassValue — quotesOnNewLine", () => {
   it("hugs the quotes when false", () => {
     expect(

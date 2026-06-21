@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { groupByCategory } from "./group.js";
+import { groupByCategory, toLines } from "./group.js";
 import type { GetClassOrder } from "./order.js";
 
 /** Shorthand for a single base-only block. */
@@ -120,6 +120,50 @@ describe("groupByCategory — nested variant blocks (category-variant)", () => {
         ],
       },
     ]);
+  });
+});
+
+describe("groupByCategory — categoryOrder option", () => {
+  it("emits listed categories first, then the rest in default order", () => {
+    const groups = groupByCategory("p-4 flex text-sm", {
+      categoryOrder: ["typography", "spacing"],
+    });
+    expect(groups.map((g) => g.category)).toEqual([
+      "typography",
+      "spacing",
+      "flexbox-grid",
+    ]);
+  });
+});
+
+describe("toLines", () => {
+  // backgrounds: base bg-red-500 + hover block; spacing: base p-4
+  const groups = groupByCategory("bg-red-500 hover:bg-black p-4");
+
+  it("category-variant: one line per variant block", () => {
+    expect(toLines(groups, "category-variant")).toEqual([
+      ["p-4"],
+      ["bg-red-500"],
+      ["hover:bg-black"],
+    ]);
+  });
+
+  it("category: one line per category (variants inline)", () => {
+    expect(toLines(groups, "category")).toEqual([
+      ["p-4"],
+      ["bg-red-500", "hover:bg-black"],
+    ]);
+  });
+
+  it("variant: one line per variant chain, base first, categories inline", () => {
+    expect(toLines(groups, "variant")).toEqual([
+      ["p-4", "bg-red-500"],
+      ["hover:bg-black"],
+    ]);
+  });
+
+  it("defaults to category-variant", () => {
+    expect(toLines(groups)).toEqual(toLines(groups, "category-variant"));
   });
 });
 

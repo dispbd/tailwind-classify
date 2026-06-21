@@ -13,22 +13,29 @@
  * JSX attribute strings and template literals may wrap.
  *
  * The grouping/wrapping logic lives in the shared formatClassValue (format.ts);
- * this rule only adapts the AST to it. Defaults (callees, printWidth, indent)
- * are constants here and become rule options in a later commit.
+ * this rule only adapts the AST to it and reads its options.
  */
 
 import type { Rule } from "eslint";
 import { formatClassValue, type FormatOptions } from "../format.js";
+import { CATEGORY_ORDER } from "../categories.js";
 
 /** Function names whose class-string arguments are formatted. */
-const CALLEES = new Set([
+const DEFAULT_CALLEES = [
   "clsx", "classnames", "cn", "cx", "cva", "ctl", "twMerge", "twJoin", "tw",
-]);
+];
 /** Tagged-template names whose quasi is formatted. */
-const TAGS = new Set(["tw"]);
+const DEFAULT_TAGS = ["tw"];
 
 // estree types don't model JSX; the AST is walked loosely.
 type AnyNode = any;
+
+interface RuleOptions extends FormatOptions {
+  /** Function names to treat as class helpers. */
+  callees?: string[];
+  /** Tagged-template names to format. */
+  tags?: string[];
+}
 
 const leadingIndent = (lineText: string) => /^\s*/.exec(lineText)?.[0] ?? "";
 
@@ -41,7 +48,29 @@ const rule: Rule.RuleModule = {
       recommended: false,
     },
     fixable: "whitespace",
-    schema: [],
+    schema: [
+      {
+        type: "object",
+        properties: {
+          group: {
+            enum: ["category", "variant", "category-variant"],
+          },
+          categoryOrder: {
+            type: "array",
+            items: { enum: [...CATEGORY_ORDER] },
+            uniqueItems: true,
+          },
+          printWidth: { type: "integer", minimum: 0 },
+          maxClassesPerLine: { type: "integer", minimum: 1 },
+          indentStep: { type: "string" },
+          quotesOnNewLine: { type: "boolean" },
+          preserveUnknownClasses: { type: "boolean" },
+          callees: { type: "array", items: { type: "string" }, uniqueItems: true },
+          tags: { type: "array", items: { type: "string" }, uniqueItems: true },
+        },
+        additionalProperties: false,
+      },
+    ],
     messages: {
       regroup:
         "Tailwind classes should be grouped by category{{ wrapped }} for readability.",
@@ -51,18 +80,23 @@ const rule: Rule.RuleModule = {
   create(context): Rule.RuleListener {
     const sourceCode = context.sourceCode;
 
+    const { callees, tags, ...formatOptions } = (context.options[0] ??
+      {}) as RuleOptions;
+    const calleeSet = new Set(callees ?? DEFAULT_CALLEES);
+    const tagSet = new Set(tags ?? DEFAULT_TAGS);
+
     const indentAt = (line: number) =>
       leadingIndent(sourceCode.lines[line - 1] ?? "");
 
     /** Format a quoted string-literal node in place. */
-    function checkString(node: AnyNode, options: FormatOptions): void {
+    function checkString(node: AnyNode, extra?: FormatOptions): void {
       const raw: string | undefined = node.raw;
       if (!raw || raw.length < 2) return;
       const inner = raw.slice(1, -1);
       const desired = formatClassValue(
         inner,
         { baseIndent: indentAt(node.loc.start.line), valueColumn: node.loc.start.column + 1 },
-        options,
+        { ...formatOptions, ...extra },
       );
       if (desired === null || desired === inner) return;
       const quote = raw[0] ?? '"';
@@ -72,13 +106,13 @@ const rule: Rule.RuleModule = {
     }
 
     /** Format a no-substitution template literal in place. */
-    function checkTemplate(node: AnyNode, options: FormatOptions): void {
+    function checkTemplate(node: AnyNode): void {
       if (node.expressions.length > 0 || node.quasis.length !== 1) return;
       const inner: string = node.quasis[0].value.raw;
       const desired = formatClassValue(
         inner,
         { baseIndent: indentAt(node.loc.start.line), valueColumn: node.loc.start.column + 1 },
-        options,
+        formatOptions,
       );
       if (desired === null || desired === inner) return;
       report(node, desired, (fixer) => fixer.replaceText(node, `\`${desired}\``));
@@ -151,18 +185,21 @@ const rule: Rule.RuleModule = {
         const value = attr.value;
         if (!value) return;
         if (value.type === "Literal" && typeof value.value === "string") {
-          checkString(value, {}); // JSX strings may wrap
+          checkString(value); // JSX strings may wrap
         } else if (
           value.type === "JSXExpressionContainer" &&
           value.expression?.type === "TemplateLiteral"
         ) {
-          checkTemplate(value.expression, {});
+          checkTemplate(value.expression);
         }
       },
 
       CallExpression(node: Rule.Node) {
         const call = node as AnyNode;
-        if (call.callee?.type !== "Identifier" || !CALLEES.has(call.callee.name)) {
+        if (
+          call.callee?.type !== "Identifier" ||
+          !calleeSet.has(call.callee.name)
+        ) {
           return;
         }
         // cva nests class strings in object values; clsx-style objects key on them.
@@ -170,15 +207,15 @@ const rule: Rule.RuleModule = {
         const nodes: AnyNode[] = [];
         for (const arg of call.arguments) collect(arg, objectKeysAreClasses, nodes);
         for (const n of nodes) {
-          if (n.type === "TemplateLiteral") checkTemplate(n, {});
+          if (n.type === "TemplateLiteral") checkTemplate(n);
           else checkString(n, { allowMultiline: false }); // JS strings can't wrap
         }
       },
 
       TaggedTemplateExpression(node: Rule.Node) {
         const tagged = node as AnyNode;
-        if (tagged.tag?.type === "Identifier" && TAGS.has(tagged.tag.name)) {
-          checkTemplate(tagged.quasi, {});
+        if (tagged.tag?.type === "Identifier" && tagSet.has(tagged.tag.name)) {
+          checkTemplate(tagged.quasi);
         }
       },
     };

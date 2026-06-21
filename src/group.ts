@@ -13,7 +13,12 @@
  */
 
 import { parseClassList, type ParsedClass } from "./parse.js";
-import { categorize, CATEGORY_ORDER, type Category } from "./categories.js";
+import {
+  categorize,
+  CATEGORY_ORDER,
+  type Category,
+  type FunctionalCategory,
+} from "./categories.js";
 import { dedupeExact } from "./dedupe.js";
 import {
   fallbackClassOrder,
@@ -37,9 +42,18 @@ export interface ClassGroup {
   blocks: VariantBlock[];
 }
 
+/** How classes map to output lines. */
+export type GroupStrategy = "category" | "variant" | "category-variant";
+
 export interface GroupOptions {
   /** Tailwind class ordering. Defaults to {@link fallbackClassOrder}. */
   getClassOrder?: GetClassOrder;
+  /**
+   * Override the category emit order. Listed categories come first (in the
+   * given order); any omitted ones follow in the default order. Unknown names
+   * are ignored.
+   */
+  categoryOrder?: FunctionalCategory[];
   /**
    * Where unknown/custom classes are surfaced: a **leading** block (`true`,
    * default — matching official plugins that put non-Tailwind classes first)
@@ -102,8 +116,11 @@ export function groupByCategory(
   input: string,
   options: GroupOptions = {},
 ): ClassGroup[] {
-  const { getClassOrder = fallbackClassOrder, preserveUnknownClasses = true } =
-    options;
+  const {
+    getClassOrder = fallbackClassOrder,
+    preserveUnknownClasses = true,
+    categoryOrder,
+  } = options;
 
   const parsed = parseClassList(input);
   const byRaw = new Map(parsed.map((p) => [p.raw, p] as const));
@@ -121,9 +138,16 @@ export function groupByCategory(
     bucket.push(p);
   }
 
+  const functional: FunctionalCategory[] =
+    categoryOrder && categoryOrder.length > 0
+      ? [
+          ...categoryOrder.filter((c) => CATEGORY_ORDER.includes(c)),
+          ...CATEGORY_ORDER.filter((c) => !categoryOrder.includes(c)),
+        ]
+      : [...CATEGORY_ORDER];
   const emitOrder: Category[] = preserveUnknownClasses
-    ? ["unknown", ...CATEGORY_ORDER]
-    : [...CATEGORY_ORDER, "unknown"];
+    ? ["unknown", ...functional]
+    : [...functional, "unknown"];
 
   const groups: ClassGroup[] = [];
   for (const category of emitOrder) {
@@ -136,4 +160,44 @@ export function groupByCategory(
     groups.push({ category, blocks });
   }
   return groups;
+}
+
+/**
+ * Flatten grouped classes into output lines per the `group` strategy:
+ * - `"category-variant"` (default): one line per variant block (category-major,
+ *   variants nested);
+ * - `"category"`: one line per category (variants inline);
+ * - `"variant"`: one line per variant chain (base first, categories inline).
+ */
+export function toLines(
+  groups: ClassGroup[],
+  strategy: GroupStrategy = "category-variant",
+): string[][] {
+  if (strategy === "category-variant") {
+    return groups.flatMap((g) => g.blocks.map((b) => b.classes));
+  }
+  if (strategy === "category") {
+    return groups.map((g) => g.blocks.flatMap((b) => b.classes));
+  }
+
+  // "variant": collect variant chains (base "" first) across all categories.
+  const variants: string[] = [];
+  for (const g of groups) {
+    for (const b of g.blocks) {
+      if (!variants.includes(b.variant)) variants.push(b.variant);
+    }
+  }
+  const ordered = ["", ...variants.filter((v) => v !== "")];
+
+  const lines: string[][] = [];
+  for (const variant of ordered) {
+    const line: string[] = [];
+    for (const g of groups) {
+      for (const b of g.blocks) {
+        if (b.variant === variant) line.push(...b.classes);
+      }
+    }
+    if (line.length > 0) lines.push(line);
+  }
+  return lines;
 }
