@@ -7,18 +7,13 @@
  * arrive in later stages. The cascade-safety invariant holds: the value is only
  * regrouped/wrapped and exact-deduplicated — never merged or otherwise altered.
  *
- * Defaults (printWidth, indent step) are constants here; they become rule
- * options in Stage 3.
+ * The grouping/wrapping logic lives in the shared formatClassValue (format.ts);
+ * this rule only adapts the JSX AST to it. printWidth / indent default inside
+ * the formatter and become rule options in Stage 3.
  */
 
 import type { Rule } from "eslint";
-import { groupByCategory } from "../group.js";
-import { serializeMultiline, serializeSingleLine } from "../serialize.js";
-
-/** Wrap onto multiple lines once the single-line form would exceed this width. */
-const PRINT_WIDTH = 80;
-/** Indentation added for each class line, relative to the attribute. */
-const INDENT_STEP = "  ";
+import { formatClassValue } from "../format.js";
 
 /** The slice of the JSX AST this rule reads. estree types don't model JSX. */
 interface JSXAttr {
@@ -64,26 +59,19 @@ const rule: Rule.RuleModule = {
         ) {
           return; // skip {expressions}, template literals, boolean attrs, etc.
         }
-        if (value.value.trim() === "") return;
-
-        const groups = groupByCategory(value.value);
-        if (groups.length === 0) return;
+        const currentInner = value.raw.slice(1, -1);
 
         const lineText = sourceCode.lines[attr.loc.start.line - 1] ?? "";
         const baseIndent = /^\s*/.exec(lineText)?.[0] ?? "";
+        // column of the attribute + `className="` (the `=` and opening quote)
+        const valueColumn =
+          attr.loc.start.column + "className".length + 2;
 
-        const singleLine = serializeSingleLine(groups);
-        // column of the attribute + `className="` + classes + closing quote
-        const singleLineWidth =
-          attr.loc.start.column + "className=".length + 1 + singleLine.length + 1;
-
-        const desiredInner =
-          singleLineWidth <= PRINT_WIDTH
-            ? singleLine
-            : serializeMultiline(groups, { baseIndent, indentStep: INDENT_STEP });
-
-        const currentInner = value.raw.slice(1, -1);
-        if (currentInner === desiredInner) return;
+        const desiredInner = formatClassValue(currentInner, {
+          baseIndent,
+          valueColumn,
+        });
+        if (desiredInner === null || desiredInner === currentInner) return;
 
         const quote = value.raw[0] ?? '"';
         const wrapped = desiredInner.includes("\n")
