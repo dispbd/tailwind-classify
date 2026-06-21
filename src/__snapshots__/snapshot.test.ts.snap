@@ -1,0 +1,155 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`snapshot: JSX className autofix > indented element keeps its indentation 1`] = `
+"function C() {
+  return (
+    <div className="
+      flex flex-col items-center justify-center
+      px-5 py-15
+      text-sm text-neutral-100
+    " />
+  );
+}"
+`;
+
+exports[`snapshot: JSX className autofix > long list wraps onto grouped lines 1`] = `
+"<div className="
+  flex flex-col items-center justify-center
+  px-5 py-15
+  text-sm text-neutral-100
+" />"
+`;
+
+exports[`snapshot: JSX className autofix > short list reorders but stays single line 1`] = `"<div className="flex p-4 text-sm" />"`;
+
+exports[`snapshot: JSX className autofix > variants / important / arbitrary preserved, unknown leads 1`] = `"<div className="[mask:url(#x)] custom-thing flex !mt-2 hover:bg-blue-500" />"`;
+
+exports[`snapshot: core grouping > canonical README example 1`] = `
+[
+  {
+    "category": "flexbox-grid",
+    "classes": [
+      "flex",
+      "flex-col",
+      "items-center",
+      "justify-center",
+    ],
+  },
+  {
+    "category": "spacing",
+    "classes": [
+      "px-5",
+      "py-15",
+    ],
+  },
+  {
+    "category": "typography",
+    "classes": [
+      "text-sm",
+      "text-neutral-100",
+    ],
+  },
+]
+`;
+
+exports[`snapshot: core grouping > many categories 1`] = `
+[
+  {
+    "category": "flexbox-grid",
+    "classes": [
+      "grid",
+      "grid-cols-3",
+      "gap-4",
+    ],
+  },
+  {
+    "category": "sizing",
+    "classes": [
+      "w-full",
+      "h-screen",
+    ],
+  },
+  {
+    "category": "borders",
+    "classes": [
+      "border",
+      "border-gray-200",
+    ],
+  },
+  {
+    "category": "transitions-animation",
+    "classes": [
+      "transition-colors",
+      "duration-300",
+    ],
+  },
+  {
+    "category": "interactivity",
+    "classes": [
+      "cursor-pointer",
+    ],
+  },
+  {
+    "category": "svg",
+    "classes": [
+      "fill-current",
+    ],
+  },
+  {
+    "category": "accessibility",
+    "classes": [
+      "sr-only",
+    ],
+  },
+]
+`;
+
+exports[`snapshot: core grouping > variants, important, arbitrary, unknown, and a duplicate 1`] = `
+[
+  {
+    "category": "unknown",
+    "classes": [
+      "custom-thing",
+      "[mask:url(#x)]",
+    ],
+  },
+  {
+    "category": "layout",
+    "classes": [
+      "z-10",
+    ],
+  },
+  {
+    "category": "spacing",
+    "classes": [
+      "p-4",
+      "!mt-2",
+    ],
+  },
+  {
+    "category": "typography",
+    "classes": [
+      "text-sm",
+    ],
+  },
+  {
+    "category": "backgrounds",
+    "classes": [
+      "hover:bg-blue-500",
+      "bg-red-500",
+    ],
+  },
+  {
+    "category": "borders",
+    "classes": [
+      "rounded-lg",
+    ],
+  },
+  {
+    "category": "effects",
+    "classes": [
+      "shadow-md",
+    ],
+  },
+]
+`;
