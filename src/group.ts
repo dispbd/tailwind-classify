@@ -37,8 +37,20 @@ export interface ClassGroup {
   blocks: VariantBlock[];
 }
 
-/** Emit order: the unknown bucket leads, then the functional categories. */
-const EMIT_ORDER: readonly Category[] = ["unknown", ...CATEGORY_ORDER];
+export interface GroupOptions {
+  /** Tailwind class ordering. Defaults to {@link fallbackClassOrder}. */
+  getClassOrder?: GetClassOrder;
+  /**
+   * Where unknown/custom classes are surfaced: a **leading** block (`true`,
+   * default — matching official plugins that put non-Tailwind classes first)
+   * or a **trailing** block (`false`).
+   *
+   * Either way unknown classes are preserved verbatim in source order; the
+   * cascade-safety invariant forbids dropping them, so this flag only controls
+   * placement, never removal.
+   */
+  preserveUnknownClasses?: boolean;
+}
 
 /** Split a category's classes into variant blocks: base first, then variants. */
 function buildBlocks(
@@ -83,12 +95,16 @@ function buildBlocks(
  * categories are omitted. Within a functional category, classes are ordered by
  * `getClassOrder` (defaults to {@link fallbackClassOrder}, which preserves
  * source order when no Tailwind context is available) and split into variant
- * blocks. The `"unknown"` bucket is emitted untouched as a single base block.
+ * blocks. The `"unknown"` bucket is emitted untouched as a single block, leading
+ * or trailing per `preserveUnknownClasses`.
  */
 export function groupByCategory(
   input: string,
-  getClassOrder: GetClassOrder = fallbackClassOrder,
+  options: GroupOptions = {},
 ): ClassGroup[] {
+  const { getClassOrder = fallbackClassOrder, preserveUnknownClasses = true } =
+    options;
+
   const parsed = parseClassList(input);
   const byRaw = new Map(parsed.map((p) => [p.raw, p] as const));
 
@@ -105,8 +121,12 @@ export function groupByCategory(
     bucket.push(p);
   }
 
+  const emitOrder: Category[] = preserveUnknownClasses
+    ? ["unknown", ...CATEGORY_ORDER]
+    : [...CATEGORY_ORDER, "unknown"];
+
   const groups: ClassGroup[] = [];
-  for (const category of EMIT_ORDER) {
+  for (const category of emitOrder) {
     const items = buckets.get(category);
     if (!items) continue;
     const blocks =

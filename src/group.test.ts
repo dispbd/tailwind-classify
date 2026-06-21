@@ -129,8 +129,65 @@ describe("groupByCategory — intra-category ordering via getClassOrder", () => 
     const getOrder: GetClassOrder = (classes) =>
       classes.map((cls) => [cls, ORDER[cls] ?? null]);
 
-    expect(groupByCategory("py-2 px-5 p-4", getOrder)).toEqual([
-      { category: "spacing", blocks: base("p-4", "px-5", "py-2") },
+    expect(
+      groupByCategory("py-2 px-5 p-4", { getClassOrder: getOrder }),
+    ).toEqual([{ category: "spacing", blocks: base("p-4", "px-5", "py-2") }]);
+  });
+});
+
+describe("groupByCategory — unknown edge cases", () => {
+  it("treats a variant on an unknown base as unknown, kept verbatim", () => {
+    expect(groupByCategory("[&>svg]:custom-thing")).toEqual([
+      { category: "unknown", blocks: base("[&>svg]:custom-thing") },
     ]);
+  });
+
+  it("treats group/peer-prefixed custom classes as unknown", () => {
+    expect(groupByCategory("group-hover:custom-foo")).toEqual([
+      { category: "unknown", blocks: base("group-hover:custom-foo") },
+    ]);
+  });
+
+  it("does NOT route an arbitrary variant on a known utility to unknown", () => {
+    // data-[state=open]: is a valid variant; bg-black is a known utility.
+    // Base first; variant blocks follow in first-appearance order.
+    expect(groupByCategory("data-[state=open]:bg-black hover:bg-white bg-black")).toEqual([
+      {
+        category: "backgrounds",
+        blocks: [
+          { variant: "", classes: ["bg-black"] },
+          { variant: "data-[state=open]", classes: ["data-[state=open]:bg-black"] },
+          { variant: "hover", classes: ["hover:bg-white"] },
+        ],
+      },
+    ]);
+  });
+
+  it("buckets custom component classes alongside known categories", () => {
+    expect(groupByCategory("btn flex card p-4")).toEqual([
+      { category: "unknown", blocks: base("btn", "card") },
+      { category: "flexbox-grid", blocks: base("flex") },
+      { category: "spacing", blocks: base("p-4") },
+    ]);
+  });
+});
+
+describe("groupByCategory — preserveUnknownClasses (placement only)", () => {
+  it("leads with the unknown block by default", () => {
+    expect(groupByCategory("custom flex").map((g) => g.category)).toEqual([
+      "unknown",
+      "flexbox-grid",
+    ]);
+  });
+
+  it("trails the unknown block when false, still preserving the classes", () => {
+    const groups = groupByCategory("custom-a flex custom-b", {
+      preserveUnknownClasses: false,
+    });
+    expect(groups.map((g) => g.category)).toEqual(["flexbox-grid", "unknown"]);
+    expect(groups.at(-1)).toEqual({
+      category: "unknown",
+      blocks: base("custom-a", "custom-b"),
+    });
   });
 });
