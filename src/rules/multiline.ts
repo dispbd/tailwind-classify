@@ -19,6 +19,7 @@
 import type { Rule } from "eslint";
 import { formatClassValue, type FormatOptions } from "../format.js";
 import { CATEGORY_ORDER } from "../categories.js";
+import { loadClassOrder } from "../tailwind/load.js";
 
 /** Function names whose class-string arguments are formatted. */
 const DEFAULT_CALLEES = [
@@ -35,6 +36,10 @@ interface RuleOptions extends FormatOptions {
   callees?: string[];
   /** Tagged-template names to format. */
   tags?: string[];
+  /** Path to a Tailwind v3 config (for getClassOrder). */
+  tailwindConfig?: string;
+  /** Path to a Tailwind v4 CSS entry point. */
+  entryPoint?: string;
 }
 
 const leadingIndent = (lineText: string) => /^\s*/.exec(lineText)?.[0] ?? "";
@@ -67,6 +72,8 @@ const rule: Rule.RuleModule = {
           preserveUnknownClasses: { type: "boolean" },
           callees: { type: "array", items: { type: "string" }, uniqueItems: true },
           tags: { type: "array", items: { type: "string" }, uniqueItems: true },
+          tailwindConfig: { type: "string" },
+          entryPoint: { type: "string" },
         },
         additionalProperties: false,
       },
@@ -80,10 +87,17 @@ const rule: Rule.RuleModule = {
   create(context): Rule.RuleListener {
     const sourceCode = context.sourceCode;
 
-    const { callees, tags, ...formatOptions } = (context.options[0] ??
-      {}) as RuleOptions;
+    const { callees, tags, tailwindConfig, entryPoint, ...formatOptions } =
+      (context.options[0] ?? {}) as RuleOptions;
     const calleeSet = new Set(callees ?? DEFAULT_CALLEES);
     const tagSet = new Set(tags ?? DEFAULT_TAGS);
+
+    // Real Tailwind ordering if a config/entry point resolves; else fallback.
+    formatOptions.getClassOrder = loadClassOrder({
+      tailwindConfig,
+      entryPoint,
+      cwd: context.cwd,
+    });
 
     const indentAt = (line: number) =>
       leadingIndent(sourceCode.lines[line - 1] ?? "");
