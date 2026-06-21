@@ -63,6 +63,21 @@ describe("groupByCategory — unknown bucket", () => {
   });
 });
 
+describe("groupByCategory — exact deduplication", () => {
+  it("drops exact duplicate tokens across categories", () => {
+    expect(groupByCategory("p-4 p-4 flex flex")).toEqual([
+      { category: "flexbox-grid", classes: ["flex"] },
+      { category: "spacing", classes: ["p-4"] },
+    ]);
+  });
+
+  it("keeps conflicting (non-identical) utilities in the same group", () => {
+    expect(groupByCategory("p-4 p-2")).toEqual([
+      { category: "spacing", classes: ["p-4", "p-2"] },
+    ]);
+  });
+});
+
 describe("groupByCategory — variants (not nested in Stage 1)", () => {
   it("places a variant class in its base category as the full token", () => {
     const groups = groupByCategory("bg-red-500 hover:bg-blue-500");

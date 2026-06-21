@@ -13,6 +13,7 @@
 
 import { parseClassList } from "./parse.js";
 import { categorize, CATEGORY_ORDER, type Category } from "./categories.js";
+import { dedupeExact } from "./dedupe.js";
 import {
   fallbackClassOrder,
   sortByClassOrder,
@@ -31,22 +32,27 @@ const EMIT_ORDER: readonly Category[] = ["unknown", ...CATEGORY_ORDER];
 /**
  * Group a whitespace-separated class string into ordered category groups.
  *
- * Empty categories are omitted. Within a functional category, classes are
- * ordered by `getClassOrder` (defaults to {@link fallbackClassOrder}, which
- * preserves source order when no Tailwind context is available). The
- * `"unknown"` bucket always keeps source order — custom classes are never
- * reordered relative to each other.
+ * Exact duplicate tokens are removed first (see {@link dedupeExact}); only
+ * byte-for-byte identical tokens are dropped. Empty categories are omitted.
+ * Within a functional category, classes are ordered by `getClassOrder`
+ * (defaults to {@link fallbackClassOrder}, which preserves source order when no
+ * Tailwind context is available). The `"unknown"` bucket always keeps source
+ * order — custom classes are never reordered relative to each other.
  */
 export function groupByCategory(
   input: string,
   getClassOrder: GetClassOrder = fallbackClassOrder,
 ): ClassGroup[] {
+  const parsed = parseClassList(input);
+  // Identical raw tokens always share the same base, so this map is safe.
+  const baseByRaw = new Map(parsed.map((p) => [p.raw, p.base] as const));
+
   const buckets = new Map<Category, string[]>();
-  for (const parsed of parseClassList(input)) {
-    const category = categorize(parsed.base);
+  for (const raw of dedupeExact(parsed.map((p) => p.raw))) {
+    const category = categorize(baseByRaw.get(raw)!);
     const bucket = buckets.get(category);
-    if (bucket) bucket.push(parsed.raw);
-    else buckets.set(category, [parsed.raw]);
+    if (bucket) bucket.push(raw);
+    else buckets.set(category, [raw]);
   }
 
   const groups: ClassGroup[] = [];
