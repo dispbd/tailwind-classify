@@ -27,27 +27,42 @@ exports[`snapshot: JSX className autofix > variants / important / arbitrary pres
 exports[`snapshot: core grouping > canonical README example 1`] = `
 [
   {
+    "blocks": [
+      {
+        "classes": [
+          "flex",
+          "flex-col",
+          "items-center",
+          "justify-center",
+        ],
+        "variant": "",
+      },
+    ],
     "category": "flexbox-grid",
-    "classes": [
-      "flex",
-      "flex-col",
-      "items-center",
-      "justify-center",
-    ],
   },
   {
+    "blocks": [
+      {
+        "classes": [
+          "px-5",
+          "py-15",
+        ],
+        "variant": "",
+      },
+    ],
     "category": "spacing",
-    "classes": [
-      "px-5",
-      "py-15",
-    ],
   },
   {
-    "category": "typography",
-    "classes": [
-      "text-sm",
-      "text-neutral-100",
+    "blocks": [
+      {
+        "classes": [
+          "text-sm",
+          "text-neutral-100",
+        ],
+        "variant": "",
+      },
     ],
+    "category": "typography",
   },
 ]
 `;
@@ -55,51 +70,86 @@ exports[`snapshot: core grouping > canonical README example 1`] = `
 exports[`snapshot: core grouping > many categories 1`] = `
 [
   {
+    "blocks": [
+      {
+        "classes": [
+          "grid",
+          "grid-cols-3",
+          "gap-4",
+        ],
+        "variant": "",
+      },
+    ],
     "category": "flexbox-grid",
-    "classes": [
-      "grid",
-      "grid-cols-3",
-      "gap-4",
-    ],
   },
   {
+    "blocks": [
+      {
+        "classes": [
+          "w-full",
+          "h-screen",
+        ],
+        "variant": "",
+      },
+    ],
     "category": "sizing",
-    "classes": [
-      "w-full",
-      "h-screen",
-    ],
   },
   {
+    "blocks": [
+      {
+        "classes": [
+          "border",
+          "border-gray-200",
+        ],
+        "variant": "",
+      },
+    ],
     "category": "borders",
-    "classes": [
-      "border",
-      "border-gray-200",
-    ],
   },
   {
+    "blocks": [
+      {
+        "classes": [
+          "transition-colors",
+          "duration-300",
+        ],
+        "variant": "",
+      },
+    ],
     "category": "transitions-animation",
-    "classes": [
-      "transition-colors",
-      "duration-300",
-    ],
   },
   {
+    "blocks": [
+      {
+        "classes": [
+          "cursor-pointer",
+        ],
+        "variant": "",
+      },
+    ],
     "category": "interactivity",
-    "classes": [
-      "cursor-pointer",
-    ],
   },
   {
+    "blocks": [
+      {
+        "classes": [
+          "fill-current",
+        ],
+        "variant": "",
+      },
+    ],
     "category": "svg",
-    "classes": [
-      "fill-current",
-    ],
   },
   {
-    "category": "accessibility",
-    "classes": [
-      "sr-only",
+    "blocks": [
+      {
+        "classes": [
+          "sr-only",
+        ],
+        "variant": "",
+      },
     ],
+    "category": "accessibility",
   },
 ]
 `;
@@ -107,49 +157,89 @@ exports[`snapshot: core grouping > many categories 1`] = `
 exports[`snapshot: core grouping > variants, important, arbitrary, unknown, and a duplicate 1`] = `
 [
   {
+    "blocks": [
+      {
+        "classes": [
+          "custom-thing",
+          "[mask:url(#x)]",
+        ],
+        "variant": "",
+      },
+    ],
     "category": "unknown",
-    "classes": [
-      "custom-thing",
-      "[mask:url(#x)]",
-    ],
   },
   {
+    "blocks": [
+      {
+        "classes": [
+          "z-10",
+        ],
+        "variant": "",
+      },
+    ],
     "category": "layout",
-    "classes": [
-      "z-10",
-    ],
   },
   {
+    "blocks": [
+      {
+        "classes": [
+          "p-4",
+          "!mt-2",
+        ],
+        "variant": "",
+      },
+    ],
     "category": "spacing",
-    "classes": [
-      "p-4",
-      "!mt-2",
-    ],
   },
   {
+    "blocks": [
+      {
+        "classes": [
+          "text-sm",
+        ],
+        "variant": "",
+      },
+    ],
     "category": "typography",
-    "classes": [
-      "text-sm",
-    ],
   },
   {
+    "blocks": [
+      {
+        "classes": [
+          "bg-red-500",
+        ],
+        "variant": "",
+      },
+      {
+        "classes": [
+          "hover:bg-blue-500",
+        ],
+        "variant": "hover",
+      },
+    ],
     "category": "backgrounds",
-    "classes": [
-      "hover:bg-blue-500",
-      "bg-red-500",
-    ],
   },
   {
+    "blocks": [
+      {
+        "classes": [
+          "rounded-lg",
+        ],
+        "variant": "",
+      },
+    ],
     "category": "borders",
-    "classes": [
-      "rounded-lg",
-    ],
   },
   {
-    "category": "effects",
-    "classes": [
-      "shadow-md",
+    "blocks": [
+      {
+        "classes": [
+          "shadow-md",
+        ],
+        "variant": "",
+      },
     ],
+    "category": "effects",
   },
 ]
 `;
