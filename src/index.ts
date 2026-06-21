@@ -1,9 +1,11 @@
 /**
  * eslint-plugin-tailwind-classify
  *
- * Stage 0 scaffold — entry point stub.
- * The actual rule(s) land in Stage 1 (feat/core-mvp).
+ * Splits long Tailwind class lists onto multiple lines, grouped by semantic
+ * category, with exact-only deduplication and a cascade-safe invariant.
  */
+
+import multiline from "./rules/multiline.js";
 
 const plugin = {
   meta: {
@@ -11,7 +13,7 @@ const plugin = {
     version: "0.0.0",
   },
   rules: {
-    // "multiline" rule added in Stage 1
+    multiline,
   },
   configs: {},
 };
