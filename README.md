@@ -2,26 +2,115 @@
 
 > Splits long Tailwind class lists onto multiple lines, **grouped by semantic category** (layout, spacing, typography, …), with variants nested inside each group.
 
-**Status:** early development (Stage 0 — scaffold). Not yet published to npm.
+**Status:** in development — not yet published to npm.
 
 ## Why
 
-The official `prettier-plugin-tailwindcss` only sorts classes into a single line. Prettier itself does not support multi-line formatting of the `class`/`className` attribute (it collapses whitespace), so this is built as an **ESLint rule** with autofix instead.
+The official `prettier-plugin-tailwindcss` only sorts classes into a single line, and Prettier itself can't format the `class`/`className` attribute across multiple lines (it collapses whitespace). So this is an **ESLint rule** with autofix instead.
 
-Existing ESLint multi-line plugins wrap by print width and group by *variant*. `classify` is different: it groups by **semantic category**, so each line answers one question ("what are the spacing classes? the typography classes?").
+Other ESLint multi-line plugins wrap by print width and group by *variant*. `classify` is different: it groups by **semantic category**, so each line answers one question — "what are the spacing classes? the typography classes?".
+
+```jsx
+// before
+<div className="flex flex-col items-center justify-center px-5 py-15 text-sm text-neutral-100" />
+
+// after
+<div className="
+  flex flex-col items-center justify-center
+  px-5 py-15
+  text-sm text-neutral-100
+" />
+```
+
+Short lists are reordered on a single line instead of wrapped:
+
+```jsx
+// before                         // after
+<div className="text-sm flex p-4" />   →   <div className="flex p-4 text-sm" />
+```
+
+## Install
+
+```sh
+npm i -D eslint-plugin-tailwind-classify
+```
+
+Requires ESLint 8 or 9.
+
+## Usage
+
+Flat config (`eslint.config.js`):
+
+```js
+import tailwindClassify from "eslint-plugin-tailwind-classify";
+
+export default [
+  {
+    plugins: { "tailwind-classify": tailwindClassify },
+    rules: {
+      "tailwind-classify/multiline": "error",
+    },
+  },
+];
+```
+
+Run `eslint --fix` to apply the grouping.
+
+### What it formats
+
+- **JSX `className`** — string literals and no-substitution template literals.
+- **HTML / Vue / Svelte / Astro `class`** — static attributes. Dynamic bindings (`:class`, `v-bind:class`, `[class]`, `class:list`, `class={…}`) are left alone.
+- **Class helpers** — `clsx` / `classnames` / `cn` / `cx` / `cva` / `ctl` / `twMerge` / `twJoin` / `tw`, including string, array, object, and conditional arguments. `cva` variant values and clsx-style object keys are both handled.
+- **Tagged templates** — `` tw`…` ``.
+
+> Wrapping requires a context that allows newlines (JSX attributes, template literals, HTML). Ordinary JS string literals (e.g. `clsx("…")`) can't contain raw newlines, so there they are only **regrouped on a single line**, never wrapped.
+
+## Categories
+
+Classes are grouped into these categories, in this default order; unknown / custom classes go on a leading line.
+
+`layout` · `flexbox-grid` · `spacing` · `sizing` · `typography` · `backgrounds` · `borders` · `effects` · `filters` · `tables` · `transitions-animation` · `transforms` · `interactivity` · `svg` · `accessibility`
+
+> Note: the display utilities `flex` / `inline-flex` / `grid` / `inline-grid` are grouped under **flexbox-grid** (not layout) so `flex flex-col items-center` stay on one line.
+
+## Options
+
+```js
+"tailwind-classify/multiline": ["error", { printWidth: 100, group: "category-variant" }]
+```
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `group` | `"category" \| "variant" \| "category-variant"` | `"category-variant"` | Line layout: one line per category, per variant chain, or per category with variants nested. |
+| `categoryOrder` | `string[]` | docs order | Override the category order. Listed categories lead; the rest follow in the default order. |
+| `printWidth` | `number` | `80` | Wrap once the single-line form would exceed this column. |
+| `maxClassesPerLine` | `number` | — | Wrap once the single line would hold more than this many classes. |
+| `indentStep` | `string` | `"  "` (2 spaces) | Indentation added for each wrapped class line. |
+| `quotesOnNewLine` | `boolean` | `true` | Put the quotes on their own lines when wrapping (vs. hugging the classes). |
+| `preserveUnknownClasses` | `boolean` | `true` | Place unknown/custom classes on a leading line (`true`) or a trailing line (`false`). They are always kept. |
+| `callees` | `string[]` | clsx, classnames, cn, cx, cva, ctl, twMerge, twJoin, tw | Function names whose class arguments are formatted. |
+| `tags` | `string[]` | `["tw"]` | Tagged-template names to format. |
+| `tailwindConfig` | `string` | auto | Path to a Tailwind **v3** config; its `getClassOrder` drives intra-category order. |
+| `entryPoint` | `string` | auto | Path to a Tailwind **v4** CSS entry point. *(Accepted; v4 loading is async and not wired yet — currently falls back.)* |
+
+### Class ordering
+
+The **category** of each class comes from a built-in prefix map. The **order within a category** comes from Tailwind's official `getClassOrder()` when a `tailwindConfig` is provided, so overriding utilities stay later. Without it, classes keep their source order within each category.
+
+## Before / after
 
 ```html
-<!-- before -->
-<loading-state class="flex flex-col items-center justify-center px-5 py-15 text-sm text-neutral-100">
-
+<!-- HTML — before -->
+<div class="text-sm flex p-4"></div>
 <!-- after -->
-<loading-state
-  class="
-    flex flex-col items-center justify-center
-    px-5 py-15
-    text-sm text-neutral-100
-  "
->
+<div class="flex p-4 text-sm"></div>
+```
+
+```js
+// clsx — before
+clsx("text-sm flex p-4", cond && "bg-red-500 p-2");
+// after
+clsx("flex p-4 text-sm", cond && "p-2 bg-red-500");
 ```
 
 ## Safety invariant
@@ -31,7 +120,7 @@ Reordering and regrouping classes in markup is **cosmetic** — the cascade is d
 - **only reorders and wraps** classes;
 - removes **exact** duplicates only (`p-4 p-4`), never conflicting pairs (`p-4 p-2`, `block flex`);
 - never merges conflicting utilities (that is `tailwind-merge`'s job);
-- preserves unknown / arbitrary / `!important` classes untouched.
+- preserves unknown / arbitrary (`bg-[#fff]`, `[mask:url(#x)]`) / `!important` classes verbatim.
 
 ## Roadmap
 
