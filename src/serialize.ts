@@ -26,21 +26,39 @@ export interface MultilineOptions {
   baseIndent: string;
   /** One indent level added for class lines. */
   indentStep: string;
+  /**
+   * Put the quotes on their own lines (`true`, default — the README style: a
+   * newline after the opening quote and the closing quote on its own line) or
+   * hug the classes (`false`: the first block follows the opening quote and the
+   * closing quote follows the last block).
+   */
+  quotesOnNewLine?: boolean;
 }
 
 /**
- * One line per variant block. Class lines are indented at
- * `baseIndent + indentStep`; the value starts with a newline and ends with a
- * newline + `baseIndent` so the closing quote aligns with the attribute.
+ * One line per variant block, each indented at `baseIndent + indentStep`.
+ *
+ * With `quotesOnNewLine` (default) the value opens with a newline and ends with
+ * a newline + `baseIndent`, so both quotes sit on their own lines aligned to the
+ * attribute. Without it, the first block follows the opening quote and the last
+ * block is immediately followed by the closing quote.
  */
 export function serializeMultiline(
   groups: ClassGroup[],
-  { baseIndent, indentStep }: MultilineOptions,
+  { baseIndent, indentStep, quotesOnNewLine = true }: MultilineOptions,
 ): string {
   const lineIndent = baseIndent + indentStep;
-  const body = groups
+  const blockLines = groups
     .flatMap((group) => group.blocks)
-    .map((block) => lineIndent + block.classes.join(" "))
+    .map((block) => block.classes.join(" "));
+
+  if (quotesOnNewLine) {
+    const body = blockLines.map((line) => lineIndent + line).join("\n");
+    return `\n${body}\n${baseIndent}`;
+  }
+
+  // First block hugs the opening quote; the rest are indented; no trailing pad.
+  return blockLines
+    .map((line, i) => (i === 0 ? line : lineIndent + line))
     .join("\n");
-  return `\n${body}\n${baseIndent}`;
 }

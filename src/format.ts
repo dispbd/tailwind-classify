@@ -16,6 +16,8 @@ export interface FormatOptions extends GroupOptions {
   printWidth?: number;
   /** Indentation added for each class line. Default two spaces. */
   indentStep?: string;
+  /** Put quotes on their own lines when wrapping. Default true. */
+  quotesOnNewLine?: boolean;
 }
 
 export interface FormatContext {
@@ -56,6 +58,7 @@ export function formatClassValue(
       : serializeMultiline(groups, {
           baseIndent: context.baseIndent,
           indentStep,
+          quotesOnNewLine: options.quotesOnNewLine,
         });
 
   return desired === value ? null : desired;

@@ -58,4 +58,14 @@ describe("serializeMultiline", () => {
       serializeMultiline(withVariants, { baseIndent: "", indentStep: "  " }),
     ).toBe("\n  bg-red-500\n  hover:bg-blue-500\n");
   });
+
+  it("hugs the quotes when quotesOnNewLine is false", () => {
+    expect(
+      serializeMultiline(groups, {
+        baseIndent: "",
+        indentStep: "  ",
+        quotesOnNewLine: false,
+      }),
+    ).toBe("flex flex-col\n  px-5 py-15\n  text-sm");
+  });
 });
