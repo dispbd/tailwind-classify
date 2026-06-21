@@ -3,15 +3,35 @@ import { serializeMultiline, serializeSingleLine } from "./serialize.js";
 import type { ClassGroup } from "./group.js";
 
 const groups: ClassGroup[] = [
-  { category: "flexbox-grid", classes: ["flex", "flex-col"] },
-  { category: "spacing", classes: ["px-5", "py-15"] },
-  { category: "typography", classes: ["text-sm"] },
+  {
+    category: "flexbox-grid",
+    blocks: [{ variant: "", classes: ["flex", "flex-col"] }],
+  },
+  { category: "spacing", blocks: [{ variant: "", classes: ["px-5", "py-15"] }] },
+  { category: "typography", blocks: [{ variant: "", classes: ["text-sm"] }] },
+];
+
+// A category split into a base block and a variant block.
+const withVariants: ClassGroup[] = [
+  {
+    category: "backgrounds",
+    blocks: [
+      { variant: "", classes: ["bg-red-500"] },
+      { variant: "hover", classes: ["hover:bg-blue-500"] },
+    ],
+  },
 ];
 
 describe("serializeSingleLine", () => {
-  it("concatenates all groups onto one line in order", () => {
+  it("concatenates all blocks onto one line in order", () => {
     expect(serializeSingleLine(groups)).toBe(
       "flex flex-col px-5 py-15 text-sm",
+    );
+  });
+
+  it("flattens variant blocks onto the single line", () => {
+    expect(serializeSingleLine(withVariants)).toBe(
+      "bg-red-500 hover:bg-blue-500",
     );
   });
 
@@ -21,7 +41,7 @@ describe("serializeSingleLine", () => {
 });
 
 describe("serializeMultiline", () => {
-  it("puts one group per line with the closing quote aligned to baseIndent", () => {
+  it("puts one block per line with the closing quote aligned to baseIndent", () => {
     expect(serializeMultiline(groups, { baseIndent: "", indentStep: "  " })).toBe(
       "\n  flex flex-col\n  px-5 py-15\n  text-sm\n",
     );
@@ -31,5 +51,11 @@ describe("serializeMultiline", () => {
     expect(serializeMultiline(groups, { baseIndent: "  ", indentStep: "  " })).toBe(
       "\n    flex flex-col\n    px-5 py-15\n    text-sm\n  ",
     );
+  });
+
+  it("renders each variant block on its own line", () => {
+    expect(
+      serializeMultiline(withVariants, { baseIndent: "", indentStep: "  " }),
+    ).toBe("\n  bg-red-500\n  hover:bg-blue-500\n");
   });
 });

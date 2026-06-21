@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import { groupByCategory } from "./group.js";
 import type { GetClassOrder } from "./order.js";
 
+/** Shorthand for a single base-only block. */
+const base = (...classes: string[]) => [{ variant: "", classes }];
+
 describe("groupByCategory — canonical example", () => {
   it("matches the README before/after grouping (fallback order)", () => {
     const groups = groupByCategory(
@@ -10,10 +13,10 @@ describe("groupByCategory — canonical example", () => {
     expect(groups).toEqual([
       {
         category: "flexbox-grid",
-        classes: ["flex", "flex-col", "items-center", "justify-center"],
+        blocks: base("flex", "flex-col", "items-center", "justify-center"),
       },
-      { category: "spacing", classes: ["px-5", "py-15"] },
-      { category: "typography", classes: ["text-sm", "text-neutral-100"] },
+      { category: "spacing", blocks: base("px-5", "py-15") },
+      { category: "typography", blocks: base("text-sm", "text-neutral-100") },
     ]);
   });
 });
@@ -29,8 +32,7 @@ describe("groupByCategory — category ordering", () => {
   });
 
   it("omits empty categories", () => {
-    const groups = groupByCategory("flex p-4");
-    expect(groups).toHaveLength(2);
+    expect(groupByCategory("flex p-4")).toHaveLength(2);
   });
 
   it("returns an empty array for a blank input", () => {
@@ -41,7 +43,7 @@ describe("groupByCategory — category ordering", () => {
 describe("groupByCategory — unknown bucket", () => {
   it("puts unknown/custom classes on a leading group", () => {
     const groups = groupByCategory("custom-thing flex p-4");
-    expect(groups[0]).toEqual({ category: "unknown", classes: ["custom-thing"] });
+    expect(groups[0]).toEqual({ category: "unknown", blocks: base("custom-thing") });
     expect(groups.map((g) => g.category)).toEqual([
       "unknown",
       "flexbox-grid",
@@ -53,49 +55,82 @@ describe("groupByCategory — unknown bucket", () => {
     const groups = groupByCategory("[mask:url(#x)] flex");
     expect(groups[0]).toEqual({
       category: "unknown",
-      classes: ["[mask:url(#x)]"],
+      blocks: base("[mask:url(#x)]"),
     });
   });
 
-  it("preserves source order within the unknown bucket (never reorders custom classes)", () => {
-    const groups = groupByCategory("zzz aaa mmm");
-    expect(groups).toEqual([{ category: "unknown", classes: ["zzz", "aaa", "mmm"] }]);
+  it("keeps the unknown bucket as one untouched block in source order", () => {
+    // Even a variant on an unknown class does not split or reorder it.
+    expect(groupByCategory("zzz hover:aaa mmm")).toEqual([
+      { category: "unknown", blocks: base("zzz", "hover:aaa", "mmm") },
+    ]);
   });
 });
 
 describe("groupByCategory — exact deduplication", () => {
   it("drops exact duplicate tokens across categories", () => {
     expect(groupByCategory("p-4 p-4 flex flex")).toEqual([
-      { category: "flexbox-grid", classes: ["flex"] },
-      { category: "spacing", classes: ["p-4"] },
+      { category: "flexbox-grid", blocks: base("flex") },
+      { category: "spacing", blocks: base("p-4") },
     ]);
   });
 
-  it("keeps conflicting (non-identical) utilities in the same group", () => {
+  it("keeps conflicting (non-identical) utilities in the same block", () => {
     expect(groupByCategory("p-4 p-2")).toEqual([
-      { category: "spacing", classes: ["p-4", "p-2"] },
+      { category: "spacing", blocks: base("p-4", "p-2") },
     ]);
   });
 });
 
-describe("groupByCategory — variants (not nested in Stage 1)", () => {
-  it("places a variant class in its base category as the full token", () => {
-    const groups = groupByCategory("bg-red-500 hover:bg-blue-500");
-    expect(groups).toEqual([
-      { category: "backgrounds", classes: ["bg-red-500", "hover:bg-blue-500"] },
+describe("groupByCategory — nested variant blocks (category-variant)", () => {
+  it("splits a category into base block then variant blocks", () => {
+    expect(
+      groupByCategory("bg-red-500 hover:bg-blue-500 focus:bg-black bg-white"),
+    ).toEqual([
+      {
+        category: "backgrounds",
+        blocks: [
+          { variant: "", classes: ["bg-red-500", "bg-white"] },
+          { variant: "hover", classes: ["hover:bg-blue-500"] },
+          { variant: "focus", classes: ["focus:bg-black"] },
+        ],
+      },
+    ]);
+  });
+
+  it("groups a stacked variant chain under a single block keyed by the chain", () => {
+    expect(groupByCategory("sm:hover:p-4 p-2 sm:hover:p-8")).toEqual([
+      {
+        category: "spacing",
+        blocks: [
+          { variant: "", classes: ["p-2"] },
+          { variant: "sm:hover", classes: ["sm:hover:p-4", "sm:hover:p-8"] },
+        ],
+      },
+    ]);
+  });
+
+  it("emits variant-only categories without a base block", () => {
+    expect(groupByCategory("hover:underline focus:italic")).toEqual([
+      {
+        category: "typography",
+        blocks: [
+          { variant: "hover", classes: ["hover:underline"] },
+          { variant: "focus", classes: ["focus:italic"] },
+        ],
+      },
     ]);
   });
 });
 
 describe("groupByCategory — intra-category ordering via getClassOrder", () => {
-  it("orders within a category using the injected getClassOrder", () => {
+  it("orders within a block using the injected getClassOrder", () => {
     const ORDER: Record<string, bigint> = { "p-4": 1n, "px-5": 2n, "py-2": 3n };
     const getOrder: GetClassOrder = (classes) =>
       classes.map((cls) => [cls, ORDER[cls] ?? null]);
 
-    const groups = groupByCategory("py-2 px-5 p-4", getOrder);
-    expect(groups).toEqual([
-      { category: "spacing", classes: ["p-4", "px-5", "py-2"] },
+    expect(groupByCategory("py-2 px-5 p-4", getOrder)).toEqual([
+      { category: "spacing", blocks: base("p-4", "px-5", "py-2") },
     ]);
   });
 });
