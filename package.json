@@ -1,0 +1,55 @@
+{
+  "name": "eslint-plugin-tailwind-classify",
+  "version": "0.0.0",
+  "description": "ESLint plugin that splits Tailwind class lists onto multiple lines, grouped by semantic category (layout, spacing, typography, ...) with nested variants.",
+  "keywords": [
+    "eslint",
+    "eslint-plugin",
+    "tailwind",
+    "tailwindcss",
+    "tailwind-classes",
+    "classify",
+    "multiline",
+    "readable",
+    "format",
+    "group",
+    "category"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "skill"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "eslint": ">=8.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "eslint": "^9.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
