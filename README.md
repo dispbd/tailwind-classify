@@ -39,22 +39,47 @@ Requires ESLint 8 or 9.
 
 ## Usage
 
-Flat config (`eslint.config.js`):
+Flat config (`eslint.config.js`) — recommended:
+
+```js
+import tailwindClassify from "eslint-plugin-tailwind-classify";
+
+export default [
+  tailwindClassify.configs.recommended,
+];
+```
+
+Or wire it manually (e.g. to pass options or scope it to certain files):
 
 ```js
 import tailwindClassify from "eslint-plugin-tailwind-classify";
 
 export default [
   {
+    files: ["**/*.{js,jsx,ts,tsx}"],
     plugins: { "tailwind-classify": tailwindClassify },
     rules: {
-      "tailwind-classify/multiline": "error",
+      "tailwind-classify/multiline": ["error", { printWidth: 100 }],
     },
   },
 ];
 ```
 
 Run `eslint --fix` to apply the grouping.
+
+### Integration by syntax
+
+- **JS / TS / JSX / TSX** — the ESLint rule handles `className`, helper calls, and tagged templates. Make sure your config parses the files (the default parser handles JSX with `parserOptions.ecmaFeatures.jsx`; use `@typescript-eslint/parser` for `.ts`/`.tsx`).
+- **HTML / Vue / Svelte / Astro** — these aren't JS, so use the **programmatic** formatter (e.g. in a script, codemod, or build step). An ESLint integration for these file types is planned.
+
+  ```js
+  import { formatMarkup } from "eslint-plugin-tailwind-classify";
+
+  const out = formatMarkup('<div class="text-sm flex p-4"></div>');
+  // → '<div class="flex p-4 text-sm"></div>'
+  ```
+
+  `formatMarkup(source, options)` accepts the same options as the rule. `formatClassValue`, `extractClassAttributes`, `groupByCategory`, and `toLines` are also exported for finer-grained use.
 
 ### What it formats
 
