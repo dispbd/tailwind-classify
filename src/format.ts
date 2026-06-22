@@ -8,16 +8,31 @@
  * and serialization logic lives in one place.
  */
 
-import { groupByCategory, type GroupOptions } from "./group.js";
+import {
+  groupByCategory,
+  toLines,
+  type GroupOptions,
+  type GroupStrategy,
+} from "./group.js";
 import { serializeMultiline, serializeSingleLine } from "./serialize.js";
 
 export interface FormatOptions extends GroupOptions {
+  /** Grouping strategy for line layout. Default "category-variant". */
+  group?: GroupStrategy;
   /** Wrap once the single-line form would exceed this column. Default 80. */
   printWidth?: number;
+  /** Wrap once the single line would hold more than this many classes. */
+  maxClassesPerLine?: number;
   /** Indentation added for each class line. Default two spaces. */
   indentStep?: string;
   /** Put quotes on their own lines when wrapping. Default true. */
   quotesOnNewLine?: boolean;
+  /**
+   * Allow wrapping onto multiple lines. Default true. Set false for contexts
+   * that cannot contain raw newlines — e.g. ordinary JS string literals passed
+   * to clsx/cva — where only single-line regrouping is valid.
+   */
+  allowMultiline?: boolean;
 }
 
 export interface FormatContext {
@@ -42,24 +57,32 @@ export function formatClassValue(
 ): string | null {
   const printWidth = options.printWidth ?? 80;
   const indentStep = options.indentStep ?? "  ";
+  const allowMultiline = options.allowMultiline ?? true;
 
   if (value.trim() === "") return null;
 
   const groups = groupByCategory(value, options);
   if (groups.length === 0) return null;
 
-  const singleLine = serializeSingleLine(groups);
+  const lines = toLines(groups, options.group ?? "category-variant");
+  const totalClasses = lines.reduce((n, line) => n + line.length, 0);
+
+  const singleLine = serializeSingleLine(lines);
   // value content + the closing quote
   const singleLineWidth = context.valueColumn + singleLine.length + 1;
+  const exceedsWidth = singleLineWidth > printWidth;
+  const exceedsCount =
+    options.maxClassesPerLine !== undefined &&
+    totalClasses > options.maxClassesPerLine;
 
   const desired =
-    singleLineWidth <= printWidth
-      ? singleLine
-      : serializeMultiline(groups, {
+    allowMultiline && (exceedsWidth || exceedsCount)
+      ? serializeMultiline(lines, {
           baseIndent: context.baseIndent,
           indentStep,
           quotesOnNewLine: options.quotesOnNewLine,
-        });
+        })
+      : singleLine;
 
   return desired === value ? null : desired;
 }
