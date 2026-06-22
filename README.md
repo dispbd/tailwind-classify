@@ -113,6 +113,14 @@ clsx("text-sm flex p-4", cond && "bg-red-500 p-2");
 clsx("flex p-4 text-sm", cond && "p-2 bg-red-500");
 ```
 
+## Using with Prettier
+
+The rule only changes whitespace **inside** a class attribute value, which
+Prettier leaves untouched — so the two don't fight, and order (`eslint --fix`
+vs `prettier`) doesn't matter. `eslint-config-prettier` doesn't disable this
+rule (it isn't a stylistic rule Prettier can own), so you can keep it enabled
+alongside your Prettier setup.
+
 ## Safety invariant
 
 Reordering and regrouping classes in markup is **cosmetic** — the cascade is decided by the generated CSS, not by class position in the attribute. This plugin therefore:
