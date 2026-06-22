@@ -16,7 +16,17 @@
     "category"
   ],
   "license": "MIT",
+  "author": "dispbd",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dispbd/tailwind-classify.git"
+  },
+  "bugs": {
+    "url": "https://github.com/dispbd/tailwind-classify/issues"
+  },
+  "homepage": "https://github.com/dispbd/tailwind-classify#readme",
   "type": "module",
+  "sideEffects": false,
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -25,7 +35,8 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
-    }
+    },
+    "./package.json": "./package.json"
   },
   "files": [
     "dist",
@@ -37,17 +48,26 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepack": "npm run build",
+    "changeset": "changeset",
+    "version-packages": "changeset version",
+    "release": "npm run build && changeset publish"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "peerDependencies": {
     "eslint": ">=8.0.0"
   },
   "devDependencies": {
+    "@changesets/cli": "^2.31.0",
     "@types/eslint": "^9.6.1",
     "@types/node": "^20.0.0",
     "@typescript-eslint/eslint-plugin": "^8.61.1",
     "@typescript-eslint/parser": "^8.61.1",
     "eslint": "^9.0.0",
+    "eslint-config-prettier": "^10.1.8",
     "tsup": "^8.0.0",
     "typescript": "^5.4.0",
     "vitest": "^1.6.0"
