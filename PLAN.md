@@ -1,16 +1,25 @@
 # tailwind-classify
 
-> ESLint-плагин (и сопутствующий skill для ИИ-агентов), который разбивает длинные списки Tailwind-классов на несколько строк, **группируя их по смысловым категориям** (layout, spacing, typography, …), с вложенными вариантами.
+> An ESLint plugin (plus a companion skill for AI agents) that splits long
+> Tailwind class lists across multiple lines, **grouping them by semantic
+> category** (layout, spacing, typography, …) with variants nested inside.
 >
-> Рабочее название: **`eslint-plugin-tailwind-classify`**. Концепт: *Classify* — каламбур «классифицировать» + «работать с классами».
+> Package name: **`eslint-plugin-tailwind-classify`**. The name *Classify* is a
+> pun on "classify" + working with "classes".
+
+**Status:** Stages 0–4 shipped; published to npm as `eslint-plugin-tailwind-classify@0.1.0`.
 
 ---
 
-## 1. Постановка задачи
+## 1. Problem
 
-Длинные строки Tailwind-классов плохо читаются. Их хочется не просто отсортировать в одну строку (это уже умеет официальный плагин), а **разложить по строкам по смысловым группам** — отдельная строка под отступы, отдельная под типографику и т.д. Сейчас это делается вручную, что не масштабируется на большое число файлов.
+Long Tailwind class strings are hard to read. We don't just want to sort them
+into a single line (the official plugin already does that) — we want to **lay
+them out by semantic group**, one line per concern (spacing on its own line,
+typography on its own line, etc.). Doing this by hand doesn't scale across many
+files.
 
-Пример желаемого результата:
+Desired result:
 
 ```html
 <loading-state
@@ -24,42 +33,55 @@
 
 ---
 
-## 2. Результаты исследования
+## 2. Research
 
-### 2.1. Существующие решения
+### 2.1. Existing solutions
 
-| Инструмент | Что делает | Чего не хватает |
+| Tool | What it does | What's missing |
 |---|---|---|
-| `prettier-plugin-tailwindcss` (офиц.) | Сортировка классов в одну строку | Нет переноса на строки; порядок не настраивается |
-| `eslint-plugin-better-tailwindcss` (ранее `readable-tailwind`) | Перенос по `printWidth`/числу классов, сортировка, группировка **по вариантам** | Группирует по вариантам, **не по смысловым категориям** |
-| `@kalimahapps/eslint-plugin-tailwind` | `multiline` + `sort` по группам | Не по категориям; исторически заточен под Vue |
-| `prettier-plugin-tailwind-multiline` | Попытка многострочности как Prettier-плагин | Экспериментальный (релизы апр. 2025), нестабильный |
-| `borela/multiline-tailwindcss` | Vite-плагин | Нишевый |
+| `prettier-plugin-tailwindcss` (official) | Sorts classes onto a single line | No line wrapping; order isn't configurable |
+| `eslint-plugin-better-tailwindcss` (formerly `readable-tailwind`) | Wraps by `printWidth`/class count, sorts, groups **by variant** | Groups by variant, **not by semantic category** |
+| `@kalimahapps/eslint-plugin-tailwind` | `multiline` + `sort` by groups | Not category-based; historically Vue-focused |
+| `prettier-plugin-tailwind-multiline` | Multi-line as a Prettier plugin | Experimental, unstable |
+| `borela/multiline-tailwindcss` | Vite plugin | Niche |
 
-**Вывод:** ниши «разбить по смысловым категориям, каждая группа на своей строке» — нет. Это и есть наша ниша.
+**Takeaway:** nobody groups "by semantic category, one group per line". That's
+our niche.
 
-### 2.2. Ключевое техническое ограничение Prettier
+### 2.2. Prettier's key limitation
 
-Сам Prettier **не поддерживает** многострочное форматирование атрибута класса (`prettier/prettier#7863`) и схлопывает пробелы/переносы внутри `class`/`className` в одну строку (issues #10918, #7550, #12048). Поэтому все рабочие многострочные решения сделаны как **ESLint-плагины**, а не Prettier-плагины.
+Prettier **does not support** multi-line formatting of the class attribute
+(`prettier/prettier#7863`) and collapses whitespace inside `class`/`className`
+(issues #10918, #7550, #12048). So every working multi-line solution is an
+**ESLint plugin**, not a Prettier plugin.
 
-→ **Решение по архитектуре: делаем ESLint-правило** с autofix, а не Prettier-плагин.
+→ **Architecture decision: an ESLint rule** with autofix, not a Prettier plugin.
 
-### 2.3. Порядок классов и каскад CSS (анализ безопасности)
+### 2.3. Class order and the CSS cascade (safety analysis)
 
-- Числовой порядок Tailwind **не случаен**: он отражает порядок генерации утилит в CSS (base → components → utilities; переопределяющие классы идут позже).
-- **Но** порядок классов в самом атрибуте `class="..."` **не влияет на рендеринг**. Победитель при конфликте определяется специфичностью и порядком правил **в сгенерированном CSS**, а не позицией в HTML. (Документация Tailwind: при конфликте побеждает класс, идущий позже в таблице стилей, даже если в атрибуте он стоит первым.)
+- Tailwind's numeric order is **not arbitrary**: it reflects the order utilities
+  are generated in CSS (base → components → utilities; overriding classes come
+  later).
+- **But** the order of classes inside the `class="…"` attribute **does not
+  affect rendering**. Conflicts are resolved by specificity and rule order **in
+  the generated CSS**, not by position in the HTML.
 
-**Следствие:** переупорядочивание и перегруппировка классов в разметке **косметически безопасны**. Реальные риски — только в операциях, изменяющих *набор* классов. Поэтому вводим инвариант безопасности:
+**Consequence:** reordering and regrouping classes in markup is **cosmetically
+safe**. The only risky operations are those that change the *set* of classes.
+Hence the safety invariant:
 
-> **Плагин только переставляет и переносит классы. Он НЕ удаляет ничего, кроме точных дубликатов (`p-4 p-4`), НЕ объединяет конфликтующие утилиты, НЕ трогает кастомные/произвольные/`!`-классы.**
+> **The plugin only reorders and wraps classes. It removes nothing except exact
+> duplicates (`p-4 p-4`), never merges conflicting utilities, and never modifies
+> custom / arbitrary / `!important` classes.**
 
-Разрешение конфликтов (`p-4 p-2`, `block flex`) — зона ответственности `tailwind-merge`, а не форматтера.
+Resolving conflicts (`p-4 p-2`, `block flex`) is `tailwind-merge`'s job, not a
+formatter's.
 
 ---
 
-## 3. Таксономия категорий
+## 3. Category taxonomy
 
-### Ось А — функциональные категории (порядок = структура доков Tailwind v4)
+### Axis A — functional categories (order = Tailwind v4 docs structure)
 
 1. Layout
 2. Flexbox & Grid
@@ -77,128 +99,197 @@
 14. SVG
 15. Accessibility
 
-Плюс отдельная «нулевая» строка для **неизвестных/кастомных** классов (как офиц. плагин выносит не-Tailwind классы вперёд).
+Plus a leading "zeroth" line for **unknown / custom** classes (as the official
+plugin moves non-Tailwind classes to the front).
 
-### Ось Б — варианты (ортогональны категориям)
+> **Implemented deviation:** the display values `flex` / `inline-flex` / `grid`
+> / `inline-grid` are placed under **Flexbox & Grid** rather than Layout, so the
+> canonical example (`flex flex-col items-center justify-center`) groups on one
+> line.
 
-Респонсив (`sm:`…`lg:`), состояния (`hover:`, `focus:`, `active:`, `disabled:`), `dark:`, `group-*`/`peer-*`, произвольные селекторы.
+### Axis B — variants (orthogonal to categories)
 
-**Стратегия по умолчанию:** группировка по категориям, внутри категории — базовые классы первыми, затем вариантные блоки (категории + варианты вложенно).
+Responsive (`sm:`…`lg:`), states (`hover:`, `focus:`, `active:`, `disabled:`),
+`dark:`, `group-*`/`peer-*`, arbitrary selectors.
 
-### Источник истины для маппинга `класс → категория`
+**Default strategy:** group by category; within a category, base classes first,
+then variant blocks (categories + variants nested). Configurable via the `group`
+option (`category` | `variant` | `category-variant`).
 
-Публичного API «класс → именованная категория» нет. `getClassOrder()` Tailwind даёт только числовой индекс. Поэтому:
+### Source of truth for the `class → category` mapping
 
-- **категория** берётся из собственной карты `префикс → категория`;
-- **порядок внутри категории** — из официального `getClassOrder()` (чтобы переопределяющие классы оставались позже).
+There is no public "class → named category" API. Tailwind's `getClassOrder()`
+gives only a numeric index. So:
 
-Это гибрид: надёжный порядок от Tailwind + наша семантическая классификация.
+- **category** comes from our own hand-maintained `prefix → category` map;
+- **order within a category** comes from the official `getClassOrder()` (so
+  overriding classes stay later).
+
+A hybrid: reliable ordering from Tailwind + our semantic classification.
 
 ---
 
-## 4. Архитектура
+## 4. Architecture
 
 ```
-извлечь строку классов (по разным AST/парсерам)
+extract the class string (per AST/parser)
         ↓
-распарсить каждый класс → [варианты][базовая утилита][!][/opacity]
+parse each class → [variants][base utility][!][/opacity]
         ↓
-назначить категорию по базовой утилите (карта; неизвестное → bucket "unknown")
+assign a category by the base utility (map; unknown → "unknown" bucket)
         ↓
-отсортировать внутри категории через getClassOrder()
+sort within a category via getClassOrder()
         ↓
-сгруппировать: категории в заданном порядке, варианты вложенно
+group: categories in order, variants nested
         ↓
-сериализовать в многострочный вид (с учётом отступа родителя)
+serialize to multi-line (respecting parent indentation)
         ↓
-вернуть через ESLint autofix (fixable: "whitespace")
+return via ESLint autofix (fixable: "whitespace")
 ```
 
-Поверх парсеров — абстракция «извлечь строку → переформатировать → вернуть», чтобы поддержать разные синтаксисы единым ядром.
+A single "extract string → reformat → return" core (`formatClassValue`) sits
+above the extractors so every syntax shares one engine.
 
-### Целевые синтаксисы
+### Target syntaxes
 
-- JSX/TSX: `className`
-- HTML / Vue / Svelte / Astro: `class`
-- Шаблонные строки в функциях: `clsx`, `cva`, `tw`, `tailwind-merge` (настраиваемый список функций и атрибутов)
+- JSX/TSX: `className` — via the ESLint rule.
+- HTML / Vue / Svelte / Astro: `class` — via the programmatic `formatMarkup`
+  (string-level). An ESLint rule for these file types is future work.
+- Function/template strings: `clsx`, `cva`, `tw`, `tailwind-merge`, etc.
+  (configurable `callees` / `tags`) — via the ESLint rule.
 
-### Черновик опций конфигурации
+### Options (implemented)
 
-| Опция | Назначение | Дефолт |
+| Option | Purpose | Default |
 |---|---|---|
-| `categoryOrder` | Порядок категорий | порядок доков |
 | `group` | `"category" \| "variant" \| "category-variant"` | `"category-variant"` |
-| `printWidth` / `maxClassesPerLine` | Когда вообще переносить | `printWidth: 80` |
-| `quotesOnNewLine` | Кавычки на отдельных строках | `true` |
-| `removeDuplicates` | Только точные дубликаты | `"exact-only"` |
-| `preserveUnknownClasses` | Сохранять кастомные классы | `true` |
-| `tailwindConfig` / `entryPoint` | Путь к конфигу (v3) / CSS (v4) | авто |
+| `categoryOrder` | Custom category order | docs order |
+| `printWidth` | Wrap threshold (column) | `80` |
+| `maxClassesPerLine` | Wrap threshold (class count) | — |
+| `indentStep` | Indent per class line | `"  "` |
+| `quotesOnNewLine` | Quotes on their own lines | `true` |
+| `preserveUnknownClasses` | Unknown classes lead (`true`) or trail (`false`) | `true` |
+| `callees` / `tags` | Helper functions / tagged templates to format | clsx, cva, … / `tw` |
+| `tailwindConfig` / `entryPoint` | v3 config / v4 CSS entry for `getClassOrder` | auto |
 
-### Инвариант безопасности (повтор, критично)
+### Safety invariant (restated, critical)
 
-Только переставлять и переносить. Удалять — только точные дубли. Не мержить конфликты. Кастомные/произвольные/`!`-классы — без изменений.
-
----
-
-## 5. Дорожная карта (этапы → ветки, пункты → коммиты)
-
-> Конвенция git: **каждый этап = отдельная ветка**, **каждый пункт = отдельный коммит**. Ветки мёржатся в `main` через PR по завершении этапа.
-
-### Этап 0 — `chore/scaffold`
-- [ ] `chore: init repo, package.json, лицензия MIT, README`
-- [ ] `chore: tooling (typescript, vitest, eslint, tsup/build)`
-- [ ] `docs: добавить PLAN.md`
-- [ ] `ci: github actions — lint + test`
-
-### Этап 1 — `feat/core-mvp`
-- [ ] `feat: парсер строки классов → [variants][utility][important][opacity]`
-- [ ] `feat: карта префикс → категория (черновая, ядро категорий)`
-- [ ] `feat: интеграция getClassOrder() для порядка внутри категории`
-- [ ] `feat: группировка по категориям (без вложенных вариантов)`
-- [ ] `feat: точная дедупликация (exact-only)`
-- [ ] `feat: ESLint-правило для JSX className + autofix`
-- [ ] `test: snapshot-тесты ядра и JSX`
-
-### Этап 2 — `feat/variants-and-markup`
-- [ ] `feat: вложенная группировка вариантов (category-variant)`
-- [ ] `feat: bucket для неизвестных/кастомных классов`
-- [ ] `feat: парсер class для HTML`
-- [ ] `feat: парсеры для Vue / Svelte / Astro`
-- [ ] `feat: расчёт отступа от родителя, quotesOnNewLine`
-- [ ] `test: матрица синтаксисов`
-
-### Этап 3 — `feat/functions-and-config`
-- [ ] `feat: поддержка clsx / cva / tw / tailwind-merge`
-- [ ] `feat: опции categoryOrder / group / printWidth / maxClassesPerLine`
-- [ ] `feat: чтение tailwindConfig (v3) и entryPoint (v4)`
-- [ ] `feat: обработка arbitrary values и ! модификатора`
-- [ ] `docs: README с примерами before/after и таблицей опций`
-
-### Этап 4 — `chore/release`
-- [ ] `feat: eslint-config-prettier совместимость`
-- [ ] `docs: гайд по интеграции + recommended config`
-- [ ] `chore: настройка публикации в npm`
-- [ ] `chore: changesets / семантическое версионирование`
-- [ ] (опц.) `feat: порт под Biome`
+Only reorder and wrap. Remove exact duplicates only. Never merge conflicts.
+Custom / arbitrary / `!important` classes — preserved verbatim.
 
 ---
 
-## 6. Skill для ИИ-агентов
+## 5. Roadmap (stages → branches, items → commits)
 
-Цель: агент форматирует классы так же, как плагин, когда плагина нет (например, при генерации новой разметки). Файл `SKILL.md`:
+> Git convention: **each stage = a branch**, **each item = a commit**. Branches
+> merge to the integration branch via PR when the stage is complete.
 
-- **Триггеры:** генерация/правка Tailwind-разметки, где в `class`/`className` много или длинные классы.
-- **Инвариант безопасности** (см. раздел 4) — дословно.
-- **Таксономия категорий** с порядком и примерами префиксов в каждой.
-- **Правила переноса:** когда в одну строку, когда разбивать; куда девать варианты; формат кавычек/отступов.
-- **Примеры before/after**, включая краевые случаи: arbitrary values (`[mask:...]`), `!important`, неизвестные классы, `cva`.
+### Stage 0 — `chore/scaffold` ✅
+- [x] `chore: init repo, package.json, MIT license, README`
+- [x] `chore: tooling (typescript, vitest, eslint, tsup/build)`
+- [x] `docs: add PLAN.md`
+- [x] `ci: github actions — lint + test`
 
-Поставляется в репозитории как `skill/SKILL.md`.
+### Stage 1 — `feat/core-mvp` ✅ (PRs #1, #2)
+- [x] `feat: class-token parser → [variants][utility][important][opacity]`
+- [x] `feat: prefix → category map (draft core)`
+- [x] `feat: getClassOrder() integration for intra-category order`
+- [x] `feat: group by category (no nested variants)`
+- [x] `feat: exact-only deduplication`
+- [x] `feat: ESLint rule for JSX className + autofix`
+- [x] `test: snapshot tests for core and JSX`
+
+### Stage 2 — `feat/variants-and-markup` ✅ (PR #3)
+- [x] `feat: nested variant grouping (category-variant)`
+- [x] `feat: unknown/custom class bucket (+ option, edge cases)`
+- [x] `feat: class parser for HTML`
+- [x] `feat: Vue / Svelte / Astro support` *(merged with the syntax-matrix item — static `class` is shared)*
+- [x] `feat: parent-indent calculation, quotesOnNewLine`
+- [x] `test: syntax matrix`
+
+### Stage 3 — `feat/functions-and-config` ✅ (PR #4)
+- [x] `feat: support clsx / cva / tw / tailwind-merge`
+- [x] `feat: options categoryOrder / group / printWidth / maxClassesPerLine`
+- [x] `feat: read tailwindConfig (v3) and entryPoint (v4)` *(v4 loading is async → currently falls back)*
+- [x] `feat: arbitrary values & ! modifier` *(already handled since Stage 1 — committed as `test:` that locks the guarantees)*
+- [x] `docs: README with before/after examples and an options table`
+
+### Stage 4 — `chore/release` ✅ (PR #5)
+- [x] `feat: eslint-config-prettier compatibility`
+- [x] `docs: integration guide + recommended config`
+- [x] `chore: npm publish setup`
+- [x] `chore: changesets / semantic versioning`
+- [ ] (optional) `feat: Biome port` — **skipped**: Biome can't run ESLint plugins and a real port needs Rust/Biome core.
 
 ---
 
-## 7. Открытые вопросы
+## 6. Skill for AI agents
 
-- Финализировать имя пакета перед первой публикацией в npm (`tailwind-classify` — рабочий вариант).
-- Где хранить карту `префикс → категория`: вручную поддерживаемая таблица vs генерация из метаданных Tailwind. Решить на Этапе 1.
-- Поведение при `tailwind-merge` в проекте: предупреждать о конфликтах или молчать (по умолчанию — молчать, не наша зона).
+Goal: an agent formats classes the same way the plugin would, when the plugin
+isn't available (e.g. when generating new markup). File `skill/SKILL.md`:
+
+- **Triggers:** generating/editing Tailwind markup with many or long classes in
+  `class`/`className`.
+- **Safety invariant** (see §4) — verbatim.
+- **Category taxonomy** with order and example prefixes per category.
+- **Wrapping rules:** when to keep on one line, when to split; where variants
+  go; quote/indent format.
+- **before/after examples**, including edge cases: arbitrary values
+  (`[mask:…]`), `!important`, unknown classes, `cva`.
+
+> **Status:** `skill/SKILL.md` is currently a Stage-0 stub. Fleshing it out from
+> the shipped behavior is open (see Future work).
+
+---
+
+## 7. Open questions / decisions
+
+- Package name finalized: **`eslint-plugin-tailwind-classify`** (published).
+- The `prefix → category` map is a hand-maintained draft. Decision: keep it
+  hand-maintained for now; generating it from Tailwind metadata is future work.
+  Some v4 utilities (e.g. `mask-*`) are not yet mapped and fall into `unknown`.
+- `tailwind-merge` conflicts: stay silent by default (not our concern).
+
+---
+
+## 8. Future work / recommendations
+
+Concrete next steps, roughly by value:
+
+1. **Production single-line transform.** The multi-line output is great for DX
+   but ships extra whitespace in bundles (minifiers don't collapse string
+   literals; only gzip/brotli does — so the *transfer* cost is near-zero, but
+   the raw bundle grows). A complementary build-time transform (Vite/esbuild/
+   Babel plugin, or a `collapse` mode reusing `serializeSingleLine`) could
+   flatten class whitespace for production, giving multi-line in source and
+   single-line in the build.
+2. **Flesh out `skill/SKILL.md`** (§6) from the shipped taxonomy and examples.
+3. **ESLint rule for HTML/Vue/Svelte/Astro files** (via `@html-eslint/parser`,
+   `vue-eslint-parser`, etc.), so those file types are linted in-place instead
+   of only through the programmatic `formatMarkup`.
+4. **Tailwind v4 `getClassOrder`.** Wire async design-system loading from
+   `entryPoint` (preload outside the sync rule path) instead of falling back.
+5. **Grow the `prefix → category` map** to cover more v4 utilities and shrink the
+   `unknown` bucket; consider generating it from Tailwind metadata.
+6. **npm Trusted Publishing (OIDC).** Workflow is prepared; register the trusted
+   publisher on npm and drop the `NPM_TOKEN` secret.
+7. **A small perf guard / fixtures.** Current cost is ~3–40 µs per class string;
+   a regression fixture would keep it there.
+
+---
+
+## Performance
+
+Measured on Node 24 (single core), built `dist`:
+
+| Operation | µs/op |
+|---|---|
+| `formatClassValue`, already-correct (no-op fast path) | ~3.5 |
+| `formatClassValue`, average mixed input | ~25 |
+| `formatClassValue`, long input that wraps | ~30 |
+| `groupByCategory`, heavy (11 mixed classes) | ~39 |
+| `formatMarkup`, 200-element file | ~5.5 ms/file |
+
+Tens of microseconds per class string — negligible next to ESLint's own
+parse/traverse cost. A real Tailwind context (when `tailwindConfig` is set) is
+built once and cached, so only the first file pays for it.
