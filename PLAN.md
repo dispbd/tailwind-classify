@@ -7,7 +7,9 @@
 > Package name: **`eslint-plugin-tailwind-classify`**. The name *Classify* is a
 > pun on "classify" + working with "classes".
 
-**Status:** Stages 0–4 shipped; published to npm as `eslint-plugin-tailwind-classify@0.1.0`.
+**Status:** Stages 0–4 shipped, plus native Svelte/Vue/Astro ESLint support
+(post-release); published to npm as `eslint-plugin-tailwind-classify@0.2.0`.
+Publishing uses npm Trusted Publishing (OIDC) — no long-lived `NPM_TOKEN`.
 
 ---
 
@@ -221,6 +223,14 @@ Custom / arbitrary / `!important` classes — preserved verbatim.
 - [x] `chore: changesets / semantic versioning`
 - [ ] (optional) `feat: Biome port` — **skipped**: Biome can't run ESLint plugins and a real port needs Rust/Biome core.
 
+### Post-release — native framework ESLint support ✅ (PRs #7–#11)
+- [x] `ci: prepare release for npm Trusted Publishing (OIDC)` — `NPM_TOKEN` retired; a Trusted Publisher is registered on npm for this repo + `release.yml`.
+- [x] `docs: rewrite PLAN.md in English; reflect shipped state`
+- [x] `feat: native Svelte support in the ESLint rule` (`SvelteAttribute` visitor, `feat/svelte-eslint`)
+- [x] `feat: native Vue support in the ESLint rule` (`defineTemplateBodyVisitor` + `VAttribute`, `feat/vue-eslint`)
+- [x] `feat: native Astro support in the ESLint rule` (`JSXAttribute` with `name === "class"`; bonus: Preact/Solid `class` too, `feat/astro-eslint`)
+- [x] `chore: changeset for native Svelte/Vue/Astro support (minor)` → released as `0.2.0`
+
 ---
 
 ## 6. Skill for AI agents
@@ -264,17 +274,18 @@ Concrete next steps, roughly by value:
    flatten class whitespace for production, giving multi-line in source and
    single-line in the build.
 2. **Flesh out `skill/SKILL.md`** (§6) from the shipped taxonomy and examples.
-3. **ESLint rule for HTML/Vue/Svelte/Astro files** (via `@html-eslint/parser`,
-   `vue-eslint-parser`, etc.), so those file types are linted in-place instead
-   of only through the programmatic `formatMarkup`.
+3. **ESLint rule for plain HTML files** (via `@html-eslint/parser`), so HTML is
+   linted in-place too. Svelte/Vue/Astro/Preact/Solid already have native
+   support (see the post-release stage above); HTML still goes through the
+   programmatic `formatMarkup`.
 4. **Tailwind v4 `getClassOrder`.** Wire async design-system loading from
    `entryPoint` (preload outside the sync rule path) instead of falling back.
 5. **Grow the `prefix → category` map** to cover more v4 utilities and shrink the
    `unknown` bucket; consider generating it from Tailwind metadata.
-6. **npm Trusted Publishing (OIDC).** Workflow is prepared; register the trusted
-   publisher on npm and drop the `NPM_TOKEN` secret.
-7. **A small perf guard / fixtures.** Current cost is ~3–40 µs per class string;
+6. **A small perf guard / fixtures.** Current cost is ~3–40 µs per class string;
    a regression fixture would keep it there.
+7. ~~**npm Trusted Publishing (OIDC).**~~ **Done** — the Trusted Publisher is
+   registered on npm; `release.yml` publishes via OIDC, no `NPM_TOKEN`.
 
 ---
 
