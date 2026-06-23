@@ -6,7 +6,8 @@
  * - JSX `className` — string literal or a no-substitution template literal;
  * - class helper calls — clsx / classnames / cn / cx / cva / ctl / twMerge /
  *   twJoin / tw — string and array/object/conditional class arguments;
- * - tagged templates — tw`…` (no substitutions).
+ * - tagged templates — tw`…` (no substitutions);
+ * - Svelte `class="…"` markup (with svelte-eslint-parser).
  *
  * Newline safety: ordinary JS string literals cannot contain raw newlines, so
  * inside helper calls they are only regrouped on a single line (never wrapped).
@@ -132,6 +133,26 @@ const rule: Rule.RuleModule = {
       report(node, desired, (fixer) => fixer.replaceText(node, `\`${desired}\``));
     }
 
+    /**
+     * Format a markup attribute value whose AST node's range covers the inner
+     * text *without* the quotes (Svelte/Vue/Astro). The quotes stay; only the
+     * value range is replaced. Markup values may wrap.
+     */
+    function checkMarkupValue(valueNode: AnyNode, text: string): void {
+      const desired = formatClassValue(
+        text,
+        {
+          baseIndent: indentAt(valueNode.loc.start.line),
+          valueColumn: valueNode.loc.start.column,
+        },
+        formatOptions,
+      );
+      if (desired === null || desired === text) return;
+      report(valueNode, desired, (fixer) =>
+        fixer.replaceTextRange(valueNode.range, desired),
+      );
+    }
+
     function report(
       node: AnyNode,
       desired: string,
@@ -231,6 +252,19 @@ const rule: Rule.RuleModule = {
         if (tagged.tag?.type === "Identifier" && tagSet.has(tagged.tag.name)) {
           checkTemplate(tagged.quasi);
         }
+      },
+
+      // Svelte markup: <div class="...">. Static value is a single
+      // SvelteLiteral; dynamic (class={...}) or directive (class:foo) forms have
+      // no SvelteLiteral and are skipped.
+      SvelteAttribute(node: Rule.Node) {
+        const attr = node as AnyNode;
+        if (attr.key?.name !== "class") return;
+        const parts = attr.value;
+        if (!Array.isArray(parts) || parts.length !== 1) return;
+        const literal = parts[0];
+        if (literal?.type !== "SvelteLiteral") return;
+        checkMarkupValue(literal, literal.value);
       },
     };
   },
