@@ -1,6 +1,6 @@
 {
   "name": "eslint-plugin-tailwind-classify",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "ESLint plugin that splits Tailwind class lists onto multiple lines, grouped by semantic category (layout, spacing, typography, ...) with nested variants.",
   "keywords": [
     "eslint",
