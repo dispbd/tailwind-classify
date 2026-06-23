@@ -69,17 +69,50 @@ Run `eslint --fix` to apply the grouping.
 
 ### Integration by syntax
 
-- **JS / TS / JSX / TSX** — the ESLint rule handles `className`, helper calls, and tagged templates. Make sure your config parses the files (the default parser handles JSX with `parserOptions.ecmaFeatures.jsx`; use `@typescript-eslint/parser` for `.ts`/`.tsx`).
-- **HTML / Vue / Svelte / Astro** — these aren't JS, so use the **programmatic** formatter (e.g. in a script, codemod, or build step). An ESLint integration for these file types is planned.
+The rule runs wherever your ESLint config can parse the file. It always handles
+JS-level usage (`className`, helper calls, tagged templates); for component
+frameworks it also handles the template `class` attribute when the matching
+ESLint parser is configured.
 
-  ```js
-  import { formatMarkup } from "eslint-plugin-tailwind-classify";
+- **JS / TS / JSX / TSX** — works out of the box. The default parser handles JSX
+  with `parserOptions.ecmaFeatures.jsx`; use `@typescript-eslint/parser` for
+  `.ts`/`.tsx`.
+- **Svelte** — supported natively (see below). `class="…"` in `.svelte` markup is
+  grouped/wrapped; `class={…}` and `class:foo` directives are left alone.
+- **Vue / Astro** — native support is in progress. For now use the programmatic
+  `formatMarkup` (below).
+- **Plain HTML** — no ESLint parser; use the programmatic `formatMarkup`.
 
-  const out = formatMarkup('<div class="text-sm flex p-4"></div>');
-  // → '<div class="flex p-4 text-sm"></div>'
-  ```
+#### Svelte
 
-  `formatMarkup(source, options)` accepts the same options as the rule. `formatClassValue`, `extractClassAttributes`, `groupByCategory`, and `toLines` are also exported for finer-grained use.
+Svelte files are parsed by [`svelte-eslint-parser`](https://github.com/sveltejs/eslint-plugin-svelte)
+(bundled with `eslint-plugin-svelte`). Add the rule for `.svelte` files:
+
+```js
+import svelte from "eslint-plugin-svelte";
+import tailwindClassify from "eslint-plugin-tailwind-classify";
+
+export default [
+  ...svelte.configs.recommended, // sets svelte-eslint-parser for *.svelte
+  tailwindClassify.configs.recommended,
+];
+```
+
+`tailwind-classify/multiline` then fixes `class="…"` in `.svelte` markup and any
+`clsx`/`cva`/`tw` usage in `<script>`.
+
+#### Programmatic (HTML / Vue / Astro / scripts)
+
+```js
+import { formatMarkup } from "eslint-plugin-tailwind-classify";
+
+const out = formatMarkup('<div class="text-sm flex p-4"></div>');
+// → '<div class="flex p-4 text-sm"></div>'
+```
+
+`formatMarkup(source, options)` accepts the same options as the rule.
+`formatClassValue`, `extractClassAttributes`, `groupByCategory`, and `toLines`
+are also exported for finer-grained use.
 
 ### What it formats
 
