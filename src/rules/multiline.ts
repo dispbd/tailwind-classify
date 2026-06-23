@@ -89,7 +89,15 @@ const rule: Rule.RuleModule = {
   },
 
   create(context): Rule.RuleListener {
-    const sourceCode = context.sourceCode;
+    // `context.sourceCode` was added in ESLint 8.40.0; fall back to the older
+    // `getSourceCode()` method so the rule still works on ESLint 8.0-8.39, per
+    // the declared peerDependency (">=8.0.0"). @types/eslint no longer declares
+    // getSourceCode on RuleContext, so reach it through a cast.
+    const sourceCode =
+      context.sourceCode ??
+      (
+        context as { getSourceCode(): typeof context.sourceCode }
+      ).getSourceCode();
 
     const { callees, tags, tailwindConfig, entryPoint, ...formatOptions } =
       (context.options[0] ?? {}) as RuleOptions;

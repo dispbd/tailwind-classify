@@ -36,7 +36,8 @@ Short lists are reordered on a single line instead of wrapped:
 npm i -D eslint-plugin-tailwind-classify
 ```
 
-Requires ESLint 8 or 9.
+Requires ESLint 8 or newer — tested on 8, 9, and 10. (On ESLint 8.0–8.39 the
+rule falls back to `getSourceCode()`; `context.sourceCode` is used from 8.40 on.)
 
 ## Usage
 

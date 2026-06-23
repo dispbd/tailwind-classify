@@ -4,7 +4,7 @@ on:
   push:
     branches: ["**"]
   pull_request:
-    branches: [main]
+    branches: ["chore/scaffold"]
 
 jobs:
   build:
@@ -22,4 +22,20 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run build
+      - run: npm test
+
+  # Guard forward compatibility with the latest ESLint major (peerDep is >=8.0.0;
+  # the 8.0-8.39 lower bound is covered by src/rules/eslint-compat.test.ts).
+  eslint-10-compat:
+    name: ESLint 10 compat
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm install --no-save eslint@10 @eslint/js@10
+      - run: npm run lint
       - run: npm test
