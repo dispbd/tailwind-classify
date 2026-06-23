@@ -8,7 +8,9 @@
  *   twJoin / tw — string and array/object/conditional class arguments;
  * - tagged templates — tw`…` (no substitutions);
  * - Svelte `class="…"` markup (with svelte-eslint-parser);
- * - Vue `class="…"` template attributes (with vue-eslint-parser).
+ * - Vue `class="…"` template attributes (with vue-eslint-parser);
+ * - Astro `class="…"` (with astro-eslint-parser; emitted as JSXAttribute) — and
+ *   `class` in JSX dialects that use it (Preact, Solid).
  *
  * Newline safety: ordinary JS string literals cannot contain raw newlines, so
  * inside helper calls they are only regrouped on a single line (never wrapped).
@@ -219,15 +221,31 @@ const rule: Rule.RuleModule = {
     }
 
     const listeners: Rule.RuleListener = {
+      // `className` (React/JSX) and `class` (Astro, Preact, Solid). Astro emits
+      // ordinary JSXAttribute nodes, so this also covers Astro markup.
       JSXAttribute(node: Rule.Node) {
         const attr = node as AnyNode;
-        if (attr.name?.type !== "JSXIdentifier" || attr.name.name !== "className") {
-          return;
-        }
+        const name =
+          attr.name?.type === "JSXIdentifier" ? attr.name.name : undefined;
+        if (name !== "className" && name !== "class") return;
+
         const value = attr.value;
         if (!value) return;
         if (value.type === "Literal" && typeof value.value === "string") {
-          checkString(value); // JSX strings may wrap
+          if (name === "className" && value.raw) {
+            checkString(value); // JSX string literal (raw incl. quotes)
+          } else {
+            // `class` value: range includes the quotes; replace inner only.
+            const [start, end] = value.range;
+            checkMarkupValue(
+              value,
+              value.value,
+              start + 1,
+              end - 1,
+              value.loc.start.line,
+              value.loc.start.column + 1,
+            );
+          }
         } else if (
           value.type === "JSXExpressionContainer" &&
           value.expression?.type === "TemplateLiteral"

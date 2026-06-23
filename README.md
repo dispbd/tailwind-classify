@@ -81,8 +81,10 @@ ESLint parser is configured.
   grouped/wrapped; `class={…}` and `class:foo` directives are left alone.
 - **Vue** — supported natively (see below). `class="…"` in `.vue` `<template>` is
   grouped/wrapped; `:class` / `v-bind:class` directives are left alone.
-- **Astro** — native support is in progress. For now use the programmatic
-  `formatMarkup` (below).
+- **Astro** — supported natively (see below). `class="…"` in `.astro` markup is
+  grouped/wrapped; `class={…}` expressions are left alone.
+- **Preact / Solid** — these JSX dialects use `class`; it's handled like
+  `className`, no extra setup.
 - **Plain HTML** — no ESLint parser; use the programmatic `formatMarkup`.
 
 #### Svelte
@@ -121,7 +123,25 @@ export default [
 `class="…"` in the `<template>` is fixed (the rule reads the template AST via
 `vue-eslint-parser`), as is `clsx`/`cva`/`tw` usage in `<script>`.
 
-#### Programmatic (HTML / Astro / scripts)
+#### Astro
+
+Astro files are parsed by [`astro-eslint-parser`](https://github.com/ota-meshi/eslint-plugin-astro)
+(bundled with `eslint-plugin-astro`):
+
+```js
+import astro from "eslint-plugin-astro";
+import tailwindClassify from "eslint-plugin-tailwind-classify";
+
+export default [
+  ...astro.configs.recommended, // sets astro-eslint-parser for *.astro
+  tailwindClassify.configs.recommended,
+];
+```
+
+`class="…"` in `.astro` markup is fixed, as is `clsx`/`cva`/`tw` in the
+frontmatter.
+
+#### Programmatic (HTML / scripts)
 
 ```js
 import { formatMarkup } from "eslint-plugin-tailwind-classify";
