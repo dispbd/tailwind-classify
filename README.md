@@ -79,7 +79,9 @@ ESLint parser is configured.
   `.ts`/`.tsx`.
 - **Svelte** — supported natively (see below). `class="…"` in `.svelte` markup is
   grouped/wrapped; `class={…}` and `class:foo` directives are left alone.
-- **Vue / Astro** — native support is in progress. For now use the programmatic
+- **Vue** — supported natively (see below). `class="…"` in `.vue` `<template>` is
+  grouped/wrapped; `:class` / `v-bind:class` directives are left alone.
+- **Astro** — native support is in progress. For now use the programmatic
   `formatMarkup` (below).
 - **Plain HTML** — no ESLint parser; use the programmatic `formatMarkup`.
 
@@ -101,7 +103,25 @@ export default [
 `tailwind-classify/multiline` then fixes `class="…"` in `.svelte` markup and any
 `clsx`/`cva`/`tw` usage in `<script>`.
 
-#### Programmatic (HTML / Vue / Astro / scripts)
+#### Vue
+
+Vue SFCs are parsed by [`vue-eslint-parser`](https://github.com/vuejs/vue-eslint-parser).
+Set it as the parser for `.vue` files (`eslint-plugin-vue`'s configs do this):
+
+```js
+import vue from "eslint-plugin-vue";
+import tailwindClassify from "eslint-plugin-tailwind-classify";
+
+export default [
+  ...vue.configs["flat/recommended"], // sets vue-eslint-parser for *.vue
+  tailwindClassify.configs.recommended,
+];
+```
+
+`class="…"` in the `<template>` is fixed (the rule reads the template AST via
+`vue-eslint-parser`), as is `clsx`/`cva`/`tw` usage in `<script>`.
+
+#### Programmatic (HTML / Astro / scripts)
 
 ```js
 import { formatMarkup } from "eslint-plugin-tailwind-classify";

@@ -7,7 +7,8 @@
  * - class helper calls — clsx / classnames / cn / cx / cva / ctl / twMerge /
  *   twJoin / tw — string and array/object/conditional class arguments;
  * - tagged templates — tw`…` (no substitutions);
- * - Svelte `class="…"` markup (with svelte-eslint-parser).
+ * - Svelte `class="…"` markup (with svelte-eslint-parser);
+ * - Vue `class="…"` template attributes (with vue-eslint-parser).
  *
  * Newline safety: ordinary JS string literals cannot contain raw newlines, so
  * inside helper calls they are only regrouped on a single line (never wrapped).
@@ -134,22 +135,28 @@ const rule: Rule.RuleModule = {
     }
 
     /**
-     * Format a markup attribute value whose AST node's range covers the inner
-     * text *without* the quotes (Svelte/Vue/Astro). The quotes stay; only the
-     * value range is replaced. Markup values may wrap.
+     * Format a markup attribute value (Svelte/Vue/Astro). Only the inner text
+     * range is replaced, so the quotes stay put. Parsers differ in whether the
+     * value node's range includes the quotes, so the caller passes the explicit
+     * inner range and the column where the content begins. Markup values may
+     * wrap.
      */
-    function checkMarkupValue(valueNode: AnyNode, text: string): void {
+    function checkMarkupValue(
+      reportNode: AnyNode,
+      text: string,
+      innerStart: number,
+      innerEnd: number,
+      line: number,
+      column: number,
+    ): void {
       const desired = formatClassValue(
         text,
-        {
-          baseIndent: indentAt(valueNode.loc.start.line),
-          valueColumn: valueNode.loc.start.column,
-        },
+        { baseIndent: indentAt(line), valueColumn: column },
         formatOptions,
       );
       if (desired === null || desired === text) return;
-      report(valueNode, desired, (fixer) =>
-        fixer.replaceTextRange(valueNode.range, desired),
+      report(reportNode, desired, (fixer) =>
+        fixer.replaceTextRange([innerStart, innerEnd], desired),
       );
     }
 
@@ -211,7 +218,7 @@ const rule: Rule.RuleModule = {
       }
     }
 
-    return {
+    const listeners: Rule.RuleListener = {
       JSXAttribute(node: Rule.Node) {
         const attr = node as AnyNode;
         if (attr.name?.type !== "JSXIdentifier" || attr.name.name !== "className") {
@@ -264,9 +271,48 @@ const rule: Rule.RuleModule = {
         if (!Array.isArray(parts) || parts.length !== 1) return;
         const literal = parts[0];
         if (literal?.type !== "SvelteLiteral") return;
-        checkMarkupValue(literal, literal.value);
+        // SvelteLiteral.range is the inner text (no quotes).
+        const [start, end] = literal.range;
+        checkMarkupValue(
+          literal,
+          literal.value,
+          start,
+          end,
+          literal.loc.start.line,
+          literal.loc.start.column,
+        );
       },
     };
+
+    // Vue: the template AST is only reachable via parserServices, not ordinary
+    // listeners. When present, register a VAttribute visitor for the template
+    // and run the JS listeners over <script>.
+    const services = (sourceCode as AnyNode).parserServices;
+    if (services && typeof services.defineTemplateBodyVisitor === "function") {
+      return services.defineTemplateBodyVisitor(
+        {
+          // Static class="..."; :class / v-bind:class are directives → skipped.
+          VAttribute(node: AnyNode) {
+            if (node.directive || node.key?.name !== "class") return;
+            const value = node.value;
+            if (!value || value.type !== "VLiteral") return;
+            // VLiteral.range includes the quotes.
+            const [start, end] = value.range;
+            checkMarkupValue(
+              value,
+              value.value,
+              start + 1,
+              end - 1,
+              value.loc.start.line,
+              value.loc.start.column + 1,
+            );
+          },
+        },
+        listeners,
+      ) as Rule.RuleListener;
+    }
+
+    return listeners;
   },
 };
 
