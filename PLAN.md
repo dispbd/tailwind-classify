@@ -247,8 +247,9 @@ isn't available (e.g. when generating new markup). File `skill/SKILL.md`:
 - **before/after examples**, including edge cases: arbitrary values
   (`[mask:…]`), `!important`, unknown classes, `cva`.
 
-> **Status:** `skill/SKILL.md` is currently a Stage-0 stub. Fleshing it out from
-> the shipped behavior is open (see Future work).
+> **Status:** done — `skill/SKILL.md` is fleshed out from the shipped behavior
+> (algorithm, category cheat-sheet, wrapping rules, verified before/after
+> examples).
 
 ---
 
@@ -273,7 +274,8 @@ Concrete next steps, roughly by value:
    Babel plugin, or a `collapse` mode reusing `serializeSingleLine`) could
    flatten class whitespace for production, giving multi-line in source and
    single-line in the build.
-2. **Flesh out `skill/SKILL.md`** (§6) from the shipped taxonomy and examples.
+2. ~~**Flesh out `skill/SKILL.md`**~~ **Done** — written from the shipped
+   taxonomy, wrapping rules, and verified examples.
 3. **ESLint rule for plain HTML files** (via `@html-eslint/parser`), so HTML is
    linted in-place too. Svelte/Vue/Astro/Preact/Solid already have native
    support (see the post-release stage above); HTML still goes through the
