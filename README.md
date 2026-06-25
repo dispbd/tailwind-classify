@@ -30,6 +30,23 @@ Short lists are reordered on a single line instead of wrapped:
 <div className="text-sm flex p-4" />   →   <div className="flex p-4 text-sm" />
 ```
 
+### Why an ESLint rule, and not a Prettier plugin?
+
+Because Prettier **can't** do this. Prettier deliberately collapses any
+whitespace inside the `class` / `className` attribute and renders it on a single
+line — there is no hook to lay an attribute value out across multiple lines. The
+request to support it has been open and declined for years
+([prettier/prettier#7863](https://github.com/prettier/prettier/issues/7863); see
+also #10918, #7550). So `prettier-plugin-tailwindcss` can only *sort* classes
+into that one line; a multi-line, category-grouped layout simply isn't
+expressible as a Prettier plugin.
+
+ESLint, by contrast, exposes the attribute's source range and lets a rule
+rewrite it with an autofix — which is exactly what's needed here. It also
+composes cleanly with Prettier: this rule only changes whitespace *inside* the
+attribute value, which Prettier leaves untouched, so you can run both (see
+[Using with Prettier](#using-with-prettier)).
+
 ## Install
 
 ```sh
